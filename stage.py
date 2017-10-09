@@ -3,8 +3,9 @@
 Zynthian stage gui
 """
 import pygame
-import os
+import os, stat
 import re
+import subprocess
 from pygame.locals import *
 from pgu import gui
 from pgu import html
@@ -17,6 +18,8 @@ from pgu import html
 
 FRAMEBUFFER_DEV = "/dev/fb0"
 PEDALBOARDS_PATH = os.environ['HOME'] + "/.pedalboards"
+PEDALBOARD2MODHOST = "./pedalboard2modhost"
+MODHOST_PIPE = "/tmp/mod-host"
 
 
 ##############################################################################
@@ -101,8 +104,24 @@ def get_pedalboard_names():
 
 
 def load_pedalboard(pedalboard):
-    print(pedalboard)
+    if (pedalboard == "default"):
+        pedalboard_ttl_name = "Default.ttl"
+        print("Y")
+    else:
+        pedalboard_ttl_name = pedalboard+".ttl"
 
+    if (stat.S_ISFIFO(os.stat(MODHOST_PIPE).st_mode)):
+        if (subprocess.call("echo \"remove -1\" >" + MODHOST_PIPE,shell=True)):
+            print("Cleanup pedalboard.")
+        else:
+            print("Cleanup pedalboard failed.")
+
+        if (subprocess.call(PEDALBOARD2MODHOST + " " + PEDALBOARDS_PATH + "/" + pedalboard + ".pedalboard/" + pedalboard_ttl_name+" > " + MODHOST_PIPE,shell=True)):
+            print("Success.")
+        else:
+            print("Problem.")
+    else:
+        print(MODHOST_PIPE + " is not a named pipe.")
 
 ##############################################################################
 # Callback functions
