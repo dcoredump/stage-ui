@@ -149,7 +149,7 @@ def mod_ui_service(value):
 
     if(check_jack()==True):
         if(not mod_ui):
-            if(mod_host):
+            if(mod_host.pid):
                 mod_host.kill()
                 mod_host=None
             systemctl_mod_host(True)
@@ -233,7 +233,7 @@ def systemctl_mod_ui(run):
 
 def systemctl_mod_host(run):
     global mod_host
-    
+
     if(run==True):
         mod_host = subprocess.Popen(SYSTEMCTL+" start mod-host",shell=True)
         mod_host=True
