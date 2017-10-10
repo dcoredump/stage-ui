@@ -7,6 +7,7 @@ import os, stat, sys
 import re
 import subprocess
 import psutil
+import pwd
 from pygame.locals import *
 from pgu import gui
 from pgu import html
@@ -26,6 +27,7 @@ TAIL ="/usr/bin/tail"
 PARTRT="/usr/local/bin/partrt"
 PARTRT_OPTIONS="-f99"
 JACKWAIT="/usr/local/bin/jack_wait -t1 -w"
+SYSTEMCTL="/bin/systemctl"
 
 mod_ui=None
 mod_host=None
@@ -143,25 +145,16 @@ def load_pedalboard(pedalboard):
         print("Loading of pedalboards is disabled during a running mod-ui.")
 
 def mod_ui_service(value):
-    global mod_ui
+    global mod_ui, mod_host
 
     if(check_jack()==True):
         if(not mod_ui):
             if(mod_host):
+                mod_host.kill()
+                mod_host=None
+                start_mod_host()
                 # Start mod-ui
-                mod_ui_env = os.environ.copy()
-                if (mod_ui_env.get("LD_LIBRARY_PATH")):
-                    mod_ui_env["LD_LIBRARY_PATH"]="/usr/local/lib:"+mod_ui_env["LD_LIBRARY_PATH"]
-                else:
-                    mod_ui_env["LD_LIBRARY_PATH"] = "/usr/local/lib"
-                mod_ui_env["LV2_PATH"] = "/zynthian/zynthian-plugins/lv2:/zynthian/zynthian-my-plugins/lv2"
-                mod_ui_env["MOD_SCREENSHOT_JS"]="/zynthian/zynthian-sw/mod-ui/screenshot.js"
-                mod_ui_env["MOD_PHANTOM_BINARY"]="/usr/bin/phantomjs"
-                mod_ui_env["MOD_DEVICE_WEBSERVER_PORT"]="8888"
-                mod_ui_env["MOD_DEV_ENVIRONMENT"]="0"
-                mod_ui_env["MOD_SYSTEM_OUTPUT"]="1"
-                mod_ui_env["MOD_HOST"]="1"
-                mod_ui=subprocess.Popen("python3 /zynthian/zynthian-sw/mod-ui/server.py",shell=True, env=mod_ui_env)
+                systemctl_start_mod_ui(True)
                 value.value = gui.Label('Stop MOD-UI')
                 for pb in pedalboards_button:
                     pb.disabled=True
@@ -174,7 +167,9 @@ def mod_ui_service(value):
             for pb in pedalboards_button:
                 pb.disabled=False
                 pb.chsize()
-            mod_ui.terminate()
+            systemctl_start_mod_ui(False)
+            systemctl_start_mod_host(False)
+            start_mod_host(True)
             mod_ui=None
             value.value = gui.Label('Start MOD-UI')
             print("MOD-UI stopped.")
@@ -191,7 +186,7 @@ def mod_host_service(value):
                 p.chsize()
             value.value = gui.Label('Stop MOD-HOST')
         else:
-            mod_host.terminate()
+            mod_host.kill()
             mod_host=None
             for proc in psutil.process_iter():
                 if proc.name() == "tail":
@@ -214,6 +209,7 @@ def check_jack():
 
 def start_mod_host():
     global mod_host
+
     if(not mod_host):
         mod_host_env = os.environ.copy()
         if (mod_host_env.get("LD_LIBRARY_PATH")):
@@ -225,6 +221,25 @@ def start_mod_host():
             mod_host = subprocess.Popen(TAIL + " -f " + MODHOST_PIPE + "|" + PARTRT + " run " + PARTRT_OPTIONS + " rt " + MODHOST + " -i",shell=True, env=mod_host_env)
         else:
             mod_host = subprocess.Popen(TAIL + " -f " + MODHOST_PIPE + "|" + MODHOST + " -i", shell=True, env=mod_host_env)
+    else:
+        print("mod-host is already running.")
+
+def systemctl_mod_ui(run):
+    if(run==True):
+        mod_ui = subprocess.Popen(SYSTEMCTL+" start mod-ui",shell=True)
+        return(mod_ui.returncode)
+    else:
+        mod_ui = subprocess.Popen(SYSTEMCTL + " stop mod-ui", shell=True)
+
+def systemctl_mod_host(run):
+    if(run==True):
+        mod_host = subprocess.Popen(SYSTEMCTL+" start mod-host",shell=True)
+        return(mod_host.returncode)
+    else:
+        mod_host = subprocess.Popen(SYSTEMCTL + " stop mod-host", shell=True)
+
+def get_username():
+    return pwd.getpwuid( os.getuid() )[ 0 ]
 
 ##############################################################################
 # Callback functions
@@ -239,6 +254,10 @@ def tab():
 
 def main():
     global stage
+
+    if(get_username()!='root'):
+        print("Program must run as root.")
+        exit(101)
 
     if(check_jack()==False):
         print("jackd is not running")
@@ -277,3 +296,4 @@ def main():
 
 if(__name__=="__main__"):
     main()
+    exit(999)
