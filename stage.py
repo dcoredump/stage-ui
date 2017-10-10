@@ -154,7 +154,7 @@ def mod_ui_service(value):
                 mod_host=None
                 start_mod_host()
                 # Start mod-ui
-                systemctl_start_mod_ui(True)
+                systemctl_mod_ui(True)
                 value.value = gui.Label('Stop MOD-UI')
                 for pb in pedalboards_button:
                     pb.disabled=True
@@ -167,8 +167,8 @@ def mod_ui_service(value):
             for pb in pedalboards_button:
                 pb.disabled=False
                 pb.chsize()
-            systemctl_start_mod_ui(False)
-            systemctl_start_mod_host(False)
+            systemctl_mod_ui(False)
+            systemctl_mod_host(False)
             start_mod_host(True)
             mod_ui=None
             value.value = gui.Label('Start MOD-UI')
@@ -262,6 +262,7 @@ def main():
     if(check_jack()==False):
         print("jackd is not running")
     else:
+        systemctl_mod_host(False)
         start_mod_host()
 
     # Check for X11 or framebuffer
