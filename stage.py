@@ -152,7 +152,7 @@ def mod_ui_service(value):
             if(mod_host):
                 mod_host.kill()
                 mod_host=None
-                start_mod_host()
+                systemctl_mod_host(True)
                 # Start mod-ui
                 systemctl_mod_ui(True)
                 value.value = gui.Label('Stop MOD-UI')
@@ -228,6 +228,7 @@ def systemctl_mod_ui(run):
     global mod_ui
     if(run==True):
         mod_ui = subprocess.Popen(SYSTEMCTL+" start mod-ui",shell=True)
+        mod_ui=True
         return (mod_ui.returncode)
     else:
         mod_ui = subprocess.Popen(SYSTEMCTL + " stop mod-ui", shell=True)
@@ -238,6 +239,7 @@ def systemctl_mod_host(run):
     global mod_host
     if(run==True):
         mod_host = subprocess.Popen(SYSTEMCTL+" start mod-host",shell=True)
+        mod_host=True
         return (mod_host.returncode)
     else:
         mod_host = subprocess.Popen(SYSTEMCTL + " stop mod-host", shell=True)
@@ -261,9 +263,9 @@ def tab():
 def main():
     global stage
 
-    if(get_username()!='root'):
-        print("Program must run as root.")
-        exit(101)
+    #if(get_username()!='root'):
+    #   print("Program must run as root.")
+    #   exit(101)
 
     if(check_jack()==False):
         print("jackd is not running")
