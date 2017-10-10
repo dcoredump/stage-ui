@@ -229,22 +229,18 @@ def systemctl_mod_ui(run):
     if(run==True):
         mod_ui = subprocess.Popen(SYSTEMCTL+" start mod-ui",shell=True)
         mod_ui=True
-        return (mod_ui.returncode)
     else:
         mod_ui = subprocess.Popen(SYSTEMCTL + " stop mod-ui", shell=True)
         mod_ui=None
-        return(0);
 
 def systemctl_mod_host(run):
     global mod_host
     if(run==True):
         mod_host = subprocess.Popen(SYSTEMCTL+" start mod-host",shell=True)
         mod_host=True
-        return (mod_host.returncode)
     else:
         mod_host = subprocess.Popen(SYSTEMCTL + " stop mod-host", shell=True)
         mod_host=None
-        return (0)
 
 def get_username():
     return pwd.getpwuid( os.getuid() )[ 0 ]
