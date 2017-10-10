@@ -169,7 +169,7 @@ def mod_ui_service(value):
             for pb in pedalboards_button:
                 pb.disabled=False
                 pb.chsize()
-            start_mod_host(True)
+            start_mod_host()
             mod_ui=None
             value.value = gui.Label('Start MOD-UI')
             print("MOD-UI stopped.")
