@@ -6,6 +6,7 @@ import pygame
 import os, stat, sys
 import re
 import subprocess
+import psutil
 from pygame.locals import *
 from pgu import gui
 from pgu import html
@@ -19,16 +20,22 @@ from pgu import html
 FRAMEBUFFER_DEV = "/dev/fb0"
 PEDALBOARDS_PATH = os.environ['HOME'] + "/.pedalboards"
 PEDALBOARD2MODHOST = "./pedalboard2modhost"
-MODHOST_PIPE = "/tmp/mod-host"
+MODHOST = "/usr/local/bin/mod-host"
+MODHOST_PIPE="/tmp/mod-host"
+TAIL ="/usr/bin/tail"
+PARTRT="/usr/local/bin/partrt"
+PARTRT_OPTIONS="-f99"
+JACKWAIT="/usr/local/bin/jack_wait -t1 -w"
 
 mod_ui=None
+mod_host=None
 
 ##############################################################################
 # Functions
 ##############################################################################
 
 def main_gui():
-    global tab_index_group, tab_box, pedalboards_button
+    global tab_index_group, tab_box, pedalboards_button, mod_host
     pedalboards_button = []
 
     # Pedalboards container ######################################################
@@ -36,10 +43,12 @@ def main_gui():
     y=10
     for p in get_pedalboard_names():
         pedalboards_button.append(gui.Button(p))
-        if(mod_ui):
+        if(not mod_host):
+            pedalboards_button[-1].disabled=True
             pedalboards_button[-1].blur()
             pedalboards_button[-1].chsize()
-        pedalboards_button[-1].connect(gui.CLICK, load_pedalboard,p)
+        else:
+            pedalboards_button[-1].connect(gui.CLICK, load_pedalboard,p)
         pedalboards_container.add(pedalboards_button[-1],10,y)
         y += 40
 
@@ -68,11 +77,17 @@ def main_gui():
     system_container = html.HTML(system_html, align=-1, valign=-1, width=1280, height=1000)
 
     # Configure container ######################################################
+    voice_container = gui.Container(width=1280, height=720)
     configure_container=gui.Container(width=1280,height=720)
-    configure_button=gui.Button("Start MOD-UI")
-    configure_button.connect(gui.CLICK, mod_ui_server,configure_button)
-    configure_container.add(configure_button,10,10)
-
+    configure_mod_ui_button=gui.Button("Start MOD-UI")
+    configure_mod_ui_button.connect(gui.CLICK, mod_ui_service,configure_mod_ui_button)
+    configure_container.add(configure_mod_ui_button,10,10)
+    if(not mod_host):
+        configure_mod_host_button=gui.Button("Start MOD-HOST")
+    else:
+        configure_mod_host_button=gui.Button("Stop MOD-HOST")
+    configure_mod_host_button.connect(gui.CLICK, mod_host_service,configure_mod_host_button)
+    configure_container.add(configure_mod_host_button,200,10)
     # Tabs container ######################################################
     # Tab index group
     tab_index_group = gui.Group()
@@ -80,6 +95,8 @@ def main_gui():
     # Tab index labels
     tab_index_table = gui.Table()
     tab_index_table.tr()
+    tab_index_button = gui.Tool(tab_index_group, gui.Label("Voice"), voice_container)
+    tab_index_table.td(tab_index_button)
     tab_index_button = gui.Tool(tab_index_group, gui.Label("Pedalboards"), pedalboards_container)
     tab_index_table.td(tab_index_button)
     tab_index_button = gui.Tool(tab_index_group, gui.Label("Configure"), configure_container)
@@ -104,7 +121,7 @@ def get_pedalboard_names():
 
 
 def load_pedalboard(pedalboard):
-    if(not mod_ui):
+    if(not mod_ui and mod_host):
         if (pedalboard == "default"):
             pedalboard_ttl_name = "Default.ttl"
         else:
@@ -125,34 +142,89 @@ def load_pedalboard(pedalboard):
     else:
         print("Loading of pedalboards is disabled during a running mod-ui.")
 
-def mod_ui_server(value):
+def mod_ui_service(value):
     global mod_ui
-    if(not mod_ui):
-        # Start mod-ui
-        mod_ui_env = os.environ.copy()
-        mod_ui_env["LD_LIBRARY_PATH"]="/usr/local/lib:"+mod_ui_env["LD_LIBRARY_PATH"]
-        mod_ui_env["LV2_PATH"]="/zynthian/zynthian-plugins/lv2:/zynthian/zynthian-my-plugins/lv2"
-        mod_ui_env["MOD_SCREENSHOT_JS"]="/zynthian/zynthian-sw/mod-ui/screenshot.js"
-        mod_ui_env["MOD_PHANTOM_BINARY"]="/usr/bin/phantomjs"
-        mod_ui_env["MOD_DEVICE_WEBSERVER_PORT"]="8888"
-        mod_ui_env["MOD_DEV_ENVIRONMENT"]="0"
-        mod_ui_env["MOD_SYSTEM_OUTPUT"]="1"
-        mod_ui_env["MOD_HOST"]="1"
-        mod_ui=subprocess.Popen("python3 /zynthian/zynthian-sw/mod-ui/server.py",shell=True, env=mod_ui_env)
-        value.value = gui.Label('Stop MOD-UI')
-        for pb in pedalboards_button:
-            pb.disabled=True
-            pb.blur()
-            pb.chsize()
-        print("MOD-UI started.")
-    elif(mod_ui.pid):
-        for pb in pedalboards_button:
-            pb.disabled=False
-            pb.chsize()
-        mod_ui.terminate()
-        mod_ui=None
-        value.value = gui.Label('Start MOD-UI')
-        print("MOD-UI stopped.")
+
+    if(check_jack()==True):
+        if(not mod_ui):
+            if(mod_host):
+                # Start mod-ui
+                mod_ui_env = os.environ.copy()
+                if (mod_ui_env.get("LD_LIBRARY_PATH")):
+                    mod_ui_env["LD_LIBRARY_PATH"]="/usr/local/lib:"+mod_ui_env["LD_LIBRARY_PATH"]
+                else:
+                    mod_ui_env["LD_LIBRARY_PATH"] = "/usr/local/lib"
+                mod_ui_env["LV2_PATH"] = "/zynthian/zynthian-plugins/lv2:/zynthian/zynthian-my-plugins/lv2"
+                mod_ui_env["MOD_SCREENSHOT_JS"]="/zynthian/zynthian-sw/mod-ui/screenshot.js"
+                mod_ui_env["MOD_PHANTOM_BINARY"]="/usr/bin/phantomjs"
+                mod_ui_env["MOD_DEVICE_WEBSERVER_PORT"]="8888"
+                mod_ui_env["MOD_DEV_ENVIRONMENT"]="0"
+                mod_ui_env["MOD_SYSTEM_OUTPUT"]="1"
+                mod_ui_env["MOD_HOST"]="1"
+                mod_ui=subprocess.Popen("python3 /zynthian/zynthian-sw/mod-ui/server.py",shell=True, env=mod_ui_env)
+                value.value = gui.Label('Stop MOD-UI')
+                for pb in pedalboards_button:
+                    pb.disabled=True
+                    pb.blur()
+                    pb.chsize()
+                print("MOD-UI started.")
+            else:
+                print("Cannot start mod-ui because mod-host is not running.")
+        else:
+            for pb in pedalboards_button:
+                pb.disabled=False
+                pb.chsize()
+            mod_ui.terminate()
+            mod_ui=None
+            value.value = gui.Label('Start MOD-UI')
+            print("MOD-UI stopped.")
+    else:
+        print("Cannot start mod-ui, because jackd is not running")
+
+def mod_host_service(value):
+    global mod_host
+    if(check_jack()==True):
+        if(not mod_host):
+            start_mod_host()
+            for p in pedalboards_button:
+                p.disabled=False
+                p.chsize()
+            value.value = gui.Label('Stop MOD-HOST')
+        else:
+            mod_host.terminate()
+            mod_host=None
+            for proc in psutil.process_iter():
+                if proc.name() == "tail":
+                    print("Killing %d" %proc.pid)
+                    proc.kill()
+            for p in pedalboards_button:
+                p.disabled=True
+                p.blur()
+                p.chsize()
+            value.value = gui.Label('Start MOD-HOST')
+    else:
+        print("Cannot start mod-host, because jackd is not running")
+
+def check_jack():
+    jackwait=subprocess.call(JACKWAIT,shell=True)
+    if(jackwait!=0):
+        return(False)
+    else:
+        return(True)
+
+def start_mod_host():
+    global mod_host
+    if(not mod_host):
+        mod_host_env = os.environ.copy()
+        if (mod_host_env.get("LD_LIBRARY_PATH")):
+            mod_host_env["LD_LIBRARY_PATH"] = "/usr/local/lib:" + mod_host_env["LD_LIBRARY_PATH"]
+        else:
+            mod_host_env["LD_LIBRARY_PATH"] = "/usr/local/lib"
+        mod_host_env["LV2_PATH"] = "/zynthian/zynthian-plugins/lv2:/zynthian/zynthian-my-plugins/lv2"
+        if (os.path.isfile(PARTRT) and os.access(PARTRT, os.X_OK)):
+            mod_host = subprocess.Popen(TAIL + " -f " + MODHOST_PIPE + "|" + PARTRT + " run " + PARTRT_OPTIONS + " rt " + MODHOST + " -i",shell=True, env=mod_host_env)
+        else:
+            mod_host = subprocess.Popen(TAIL + " -f " + MODHOST_PIPE + "|" + MODHOST + " -i", shell=True, env=mod_host_env)
 
 ##############################################################################
 # Callback functions
@@ -166,7 +238,12 @@ def tab():
 ##############################################################################
 
 def main():
-    global stage, mod_ui_started
+    global stage
+
+    if(check_jack()==False):
+        print("jackd is not running")
+    else:
+        start_mod_host()
 
     # Check for X11 or framebuffer
     found = False
