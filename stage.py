@@ -225,6 +225,7 @@ def start_mod_host():
         print("mod-host is already running.")
 
 def systemctl_mod_ui(run):
+    global mod_ui
     if(run==True):
         mod_ui = subprocess.Popen(SYSTEMCTL+" start mod-ui",shell=True)
         return (mod_ui.returncode)
@@ -232,8 +233,9 @@ def systemctl_mod_ui(run):
         mod_ui = subprocess.Popen(SYSTEMCTL + " stop mod-ui", shell=True)
         mod_ui=None
         return(0);
-    
+
 def systemctl_mod_host(run):
+    global mod_host
     if(run==True):
         mod_host = subprocess.Popen(SYSTEMCTL+" start mod-host",shell=True)
         return (mod_host.returncode)
