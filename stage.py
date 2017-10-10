@@ -164,11 +164,11 @@ def mod_ui_service(value):
             else:
                 print("Cannot start mod-ui because mod-host is not running.")
         else:
+            systemctl_mod_ui(False)
+            systemctl_mod_host(False)
             for pb in pedalboards_button:
                 pb.disabled=False
                 pb.chsize()
-            systemctl_mod_ui(False)
-            systemctl_mod_host(False)
             start_mod_host(True)
             mod_ui=None
             value.value = gui.Label('Start MOD-UI')
@@ -227,16 +227,18 @@ def start_mod_host():
 def systemctl_mod_ui(run):
     if(run==True):
         mod_ui = subprocess.Popen(SYSTEMCTL+" start mod-ui",shell=True)
-        return(mod_ui.returncode)
     else:
         mod_ui = subprocess.Popen(SYSTEMCTL + " stop mod-ui", shell=True)
+        mod_ui=None
+    return(mod_ui.returncode)
 
 def systemctl_mod_host(run):
     if(run==True):
         mod_host = subprocess.Popen(SYSTEMCTL+" start mod-host",shell=True)
-        return(mod_host.returncode)
     else:
         mod_host = subprocess.Popen(SYSTEMCTL + " stop mod-host", shell=True)
+        mod_host=None
+    return(mod_host.returncode)
 
 def get_username():
     return pwd.getpwuid( os.getuid() )[ 0 ]
