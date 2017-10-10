@@ -28,22 +28,20 @@ mod_ui=None
 ##############################################################################
 
 def main_gui():
-    global tab_index_group, tab_box
+    global tab_index_group, tab_box, pedalboards_button
+    pedalboards_button = []
 
     # Pedalboards container ######################################################
-    pedalboard_header = """
-<form id='form'>
-    """
-    pedalboard_footer = """
-    """
-    pedalboard_pedalboards = """
-<table style='border:1px; border-color: #000088; background: #ccccff; margin: 8px; padding: 8px;'>
-    """
+    pedalboards_container=gui.Container(width=1280,height=720)
+    y=10
     for p in get_pedalboard_names():
-        pedalboard_pedalboards += "<tr><td><input type='button' value='" + p + "' onclick='load_pedalboard(\"" + p + "\")'>"
-    pedalboard_pedalboards += "</table>"
-    pedalboard_html = pedalboard_header + pedalboard_pedalboards + pedalboard_footer
-    pedalboards_container = html.HTML(pedalboard_html, align=-1, valign=-1, width=1280, height=1000, globals=globals())
+        pedalboards_button.append(gui.Button(p))
+        if(mod_ui):
+            pedalboards_button[-1].blur()
+            pedalboards_button[-1].chsize()
+        pedalboards_button[-1].connect(gui.CLICK, load_pedalboard,p)
+        pedalboards_container.add(pedalboards_button[-1],10,y)
+        y += 40
 
     # System container ######################################################
     system_header = """
@@ -70,14 +68,10 @@ def main_gui():
     system_container = html.HTML(system_html, align=-1, valign=-1, width=1280, height=1000)
 
     # Configure container ######################################################
-    configure_container=gui.Table(width=1280,height=720)
-    configure_button_start=gui.Button("Start MOD-UI")
-    configure_button_start.connect(gui.CLICK, mod_ui_server, True)
-    configure_button_stop = gui.Button("Stop MOD-UI")
-    configure_button_stop.connect(gui.CLICK, mod_ui_server, False)
-    configure_container.tr()
-    configure_container.td(configure_button_start)
-    configure_container.td(configure_button_stop)
+    configure_container=gui.Container(width=1280,height=720)
+    configure_button=gui.Button("Start MOD-UI")
+    configure_button.connect(gui.CLICK, mod_ui_server,configure_button)
+    configure_container.add(configure_button,10,10)
 
     # Tabs container ######################################################
     # Tab index group
@@ -133,7 +127,7 @@ def load_pedalboard(pedalboard):
 
 def mod_ui_server(value):
     global mod_ui
-    if(not mod_ui and value==True):
+    if(not mod_ui):
         # Start mod-ui
         mod_ui_env = os.environ.copy()
         mod_ui_env["LD_LIBRARY_PATH"]="/usr/local/lib:"+mod_ui_env["LD_LIBRARY_PATH"]
@@ -145,11 +139,20 @@ def mod_ui_server(value):
         mod_ui_env["MOD_SYSTEM_OUTPUT"]="1"
         mod_ui_env["MOD_HOST"]="1"
         mod_ui=subprocess.Popen("python3 /zynthian/zynthian-sw/mod-ui/server.py",shell=True, env=mod_ui_env)
-        print("MOD-UI started")
-    elif(mod_ui.pid and value==False):
-        print("Stop MOD-UI")
+        value.value = gui.Label('Stop MOD-UI')
+        for pb in pedalboards_button:
+            pb.disabled=True
+            pb.blur()
+            pb.chsize()
+        print("MOD-UI started.")
+    elif(mod_ui.pid):
+        for pb in pedalboards_button:
+            pb.disabled=False
+            pb.chsize()
         mod_ui.terminate()
         mod_ui=None
+        value.value = gui.Label('Start MOD-UI')
+        print("MOD-UI stopped.")
 
 ##############################################################################
 # Callback functions
