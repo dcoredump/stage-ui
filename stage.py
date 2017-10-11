@@ -191,7 +191,7 @@ def jack_service(value):
        start_mod_host()
 
 def start_mod_host():
-    global mod_host, mod_ui
+    global mod_host, mod_ui, configure_mod_host_button, configure_mod_ui_button, configure_jack_button
     systemctl("mod-ui",False)
     systemctl("mod-host",False)
     mod_ui=False
@@ -203,11 +203,11 @@ def start_mod_host():
     configure_mod_ui_button.chsize()
     configure_mod_ui_button.value = gui.Label('Start MOD-HOST')
     if(checK_jack()==False):
-        configure_mod_ui_button.value = gui.Label('Start Audio System')
+        configure_jack_button.value = gui.Label('Start Audio System')
     else:
-        configure_mod_ui_button.value = gui.Label('Stop Audio System')
-    configure_mod_ui_button.disabled=False
-    configure_mod_ui_button.chsize()
+        configure_jack_button.value = gui.Label('Stop Audio System')
+    configure_jack_button.disabled=False
+    configure_jack_button.chsize()
 
 def check_jack():
     jackwait=subprocess.call(JACKWAIT,shell=True)
