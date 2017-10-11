@@ -43,6 +43,8 @@ hw_black_list = [
     #"Midi Through"
 ]
 
+pedalboards_button = []
+
 logger=logging.getLogger(__name__)
 logger.setLevel(logging.ERROR)
 
@@ -51,22 +53,19 @@ logger.setLevel(logging.ERROR)
 ##############################################################################
 
 def main_gui():
-    global tab_index_group, tab_box, pedalboards_button, mod_host, configure_mod_ui_button, configure_mod_host_button, configure_jack_button
-    pedalboards_button = []
+    global tab_index_group, tab_box, mod_host, configure_mod_ui_button, configure_mod_host_button, configure_jack_button
 
     # Pedalboards container ######################################################
     pedalboards_container=gui.Container(width=1280,height=720)
     y=10
     for p in get_pedalboard_names():
         pedalboards_button.append(gui.Button(p))
-        if(not mod_host):
-            pedalboards_button[-1].disabled=True
-            pedalboards_button[-1].blur()
-            pedalboards_button[-1].chsize()
-        else:
-            pedalboards_button[-1].connect(gui.CLICK, load_pedalboard,p)
+        pedalboards_button[-1].connect(gui.CLICK, load_pedalboard,p)
         pedalboards_container.add(pedalboards_button[-1],10,y)
         y += 40
+
+    if(mod_host==False or mod_ui==True):
+        blur_pedalboard_buttons(True)
 
     # Configure container ######################################################
     voice_container = gui.Container(width=1280, height=720)
@@ -107,6 +106,16 @@ def main_gui():
 
     return (tab_index_table)
 
+def blur_pedalboard_buttons(blur):
+    for p in pedalboards_button:
+        if(blur==True):
+            p.disabled=True
+            p.blur()
+            p.chsize()
+        else:
+            p.disabled=False
+            p.chsize()
+
 def get_pedalboard_names():
     pedalboards = []
     for p in os.listdir(PEDALBOARDS_PATH):
@@ -144,10 +153,7 @@ def mod_ui_service(value):
         if(mod_ui==False):
             start_mod_ui()
             value.value = gui.Label('Stop MOD-UI')
-            for pb in pedalboards_button:
-                pb.disabled=True
-                pb.blur()
-                pb.chsize()
+            blur_pedalboard_buttons(True)
             configure_mod_host_button.disabled=True
             configure_mod_host_button.blur()
             configure_mod_host_button.chsize()
@@ -169,17 +175,12 @@ def mod_host_service(value):
     if(check_jack()==True):
         if(mod_host==False):
             mod_host=systemctl("mod-host-pipe",True)
-            for p in pedalboards_button:
-                p.disabled=False
-                p.chsize()
+            blur_pedalboard_buttons(False)
             value.value = gui.Label('Stop MOD-HOST')
         else:
             systemctl("mod-host-pipe",False)
             mod_host=False
-            for p in pedalboards_button:
-                p.disabled=True
-                p.blur()
-                p.chsize()
+            blur_pedalboard_buttons(True)
             value.value = gui.Label('Start MOD-HOST')
     else:
         print("Cannot start mod-host, because jackd is not running")
@@ -208,6 +209,8 @@ def start_mod_host():
     systemctl("mod-host",False)
     mod_ui=False
     mod_host=systemctl("mod-host-pipe",True)
+    if(mod_host==True):
+        blur_pedalboard_buttons(False)
 
 def start_mod_ui():
     global mod_host, mod_ui
@@ -215,6 +218,8 @@ def start_mod_ui():
     mod_host=False
     systemctl("mod-host",True)
     mod_ui=systemctl("mod-ui",True)
+    if(mod_ui==True):
+        blur_pedalboard_buttons(True)
 
 def check_jack():
     jackwait=subprocess.call(JACKWAIT,shell=True)
@@ -327,7 +332,7 @@ def main():
         print("jackd is not running")
         exit(102)
     else:
-        #start_mod_host()
+        start_mod_host()
         start_autoconnect()
 
     # Check for X11 or framebuffer
@@ -354,7 +359,7 @@ def main():
             pygame.display.set_mode(size, pygame.FULLSCREEN)
 
     # Start gui
-    theme = gui.Theme("themes/default")
+    theme = gui.Theme("/zynthian/zynthian-stage-ui/themes/default")
     stage = gui.Desktop(theme=theme)
     stage.connect(gui.QUIT, stage.quit, None)
     stage.run(main_gui())
