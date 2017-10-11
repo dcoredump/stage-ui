@@ -259,7 +259,7 @@ def autoconnect_thread():
             logger.error("ERROR Autoconnecting: "+str(err))
         sleep(refresh_time)
 
-def autoconnect_start(rt=2):
+def start_autoconnect(rt=2):
     global refresh_time, exit_flag, jclient, thread
     refresh_time=rt
     exit_flag=False
@@ -297,6 +297,7 @@ def main():
         print("jackd is not running")
     else:
         start_mod_host()
+        start_auto_connect()
 
     # Check for X11 or framebuffer
     found = False
