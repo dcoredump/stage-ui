@@ -51,7 +51,7 @@ logger.setLevel(logging.ERROR)
 ##############################################################################
 
 def main_gui():
-    global tab_index_group, tab_box, pedalboards_button, mod_host,configure_mod_ui_button,configure_mod_host_button,configure_jack_button
+    global tab_index_group, tab_box, pedalboards_button, mod_host, configure_mod_ui_button, configure_mod_host_button, configure_jack_button
     pedalboards_button = []
 
     # Pedalboards container ######################################################
@@ -74,7 +74,7 @@ def main_gui():
     configure_mod_ui_button=gui.Button("Start MOD-UI")
     configure_mod_ui_button.connect(gui.CLICK,mod_ui_service,configure_mod_ui_button)
     configure_container.add(configure_mod_ui_button,10,10)
-    if(not mod_host):
+    if(mod_host==False):
         configure_mod_host_button=gui.Button("Start MOD-HOST")
     else:
         configure_mod_host_button=gui.Button("Stop MOD-HOST")
@@ -85,7 +85,7 @@ def main_gui():
     else:
         configure_jack_button=gui.Button("Stop Audio System")
     configure_jack_button.connect(gui.CLICK,jack_service,configure_jack_button)
-    configure_container.add(configure_jack_button,300,10)
+    configure_container.add(configure_jack_button,400,10)
     # Tabs container ######################################################
     # Tab index group
     tab_index_group = gui.Group()
@@ -191,7 +191,7 @@ def jack_service(value):
        start_mod_host()
 
 def start_mod_host():
-    global mod_host, mod_ui, configure_mod_host_button, configure_mod_ui_button, configure_jack_button
+    global mod_host, mod_ui
     systemctl("mod-ui",False)
     systemctl("mod-host",False)
     mod_ui=False
