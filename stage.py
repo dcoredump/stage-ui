@@ -7,6 +7,7 @@ import pygame
 import os, stat, sys
 import re
 import subprocess
+import shlex
 import pwd
 import jack
 import logging
