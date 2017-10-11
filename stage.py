@@ -6,8 +6,7 @@ import pygame
 import os, stat, sys
 import re
 import subprocess
-import psutil
-import pwd
+import shlex
 from pygame.locals import *
 from pgu import gui
 from pgu import html
@@ -29,15 +28,15 @@ PARTRT_OPTIONS="-f99"
 JACKWAIT="/usr/local/bin/jack_wait -t1 -w"
 SYSTEMCTL="/bin/systemctl"
 
-mod_ui=None
-mod_host=None
+mod_ui=False
+mod_host=False
 
 ##############################################################################
 # Functions
 ##############################################################################
 
 def main_gui():
-    global tab_index_group, tab_box, pedalboards_button, mod_host
+    global tab_index_group, tab_box, pedalboards_button, mod_host,configure_mod_host_button
     pedalboards_button = []
 
     # Pedalboards container ######################################################
@@ -123,7 +122,7 @@ def get_pedalboard_names():
 
 
 def load_pedalboard(pedalboard):
-    if(not mod_ui and mod_host):
+    if(mod_ui==False and mod_host==True):
         if (pedalboard == "default"):
             pedalboard_ttl_name = "Default.ttl"
         else:
@@ -145,29 +144,26 @@ def load_pedalboard(pedalboard):
         print("Loading of pedalboards is disabled during a running mod-ui.")
 
 def mod_ui_service(value):
-    global mod_ui, mod_host
-
+    global mod_ui,mod_host
     if(check_jack()==True):
-        if(not mod_ui):
-            if(mod_host.pid):
-                mod_host.kill()
-                mod_host=None
-            systemctl_mod_host(True)
-            systemctl_mod_ui(True)
+        if(mod_ui==False):
+            start_mod_ui()
             value.value = gui.Label('Stop MOD-UI')
             for pb in pedalboards_button:
                 pb.disabled=True
                 pb.blur()
                 pb.chsize()
+            configure_mod_host_button.disabled=True
+            configure_mod_host_button.blur()
+            configure_mod_host_button.chsize()
             print("MOD-UI started.")
         else:
-            systemctl_mod_ui(False)
-            systemctl_mod_host(False)
+            start_mod_host()
             for pb in pedalboards_button:
                 pb.disabled=False
                 pb.chsize()
-            start_mod_host()
-            mod_ui=None
+            configure_mod_host_button.disabled=False
+            configure_mod_host_button.chsize()
             value.value = gui.Label('Start MOD-UI')
             print("MOD-UI stopped.")
     else:
@@ -176,19 +172,15 @@ def mod_ui_service(value):
 def mod_host_service(value):
     global mod_host
     if(check_jack()==True):
-        if(not mod_host):
-            start_mod_host()
+        if(mod_host==False):
+            mod_host=systemctl("mod-host-pipe",True)
             for p in pedalboards_button:
                 p.disabled=False
                 p.chsize()
             value.value = gui.Label('Stop MOD-HOST')
         else:
-            mod_host.kill()
-            mod_host=None
-            for proc in psutil.process_iter():
-                if proc.name() == "tail":
-                    print("Killing %d" %proc.pid)
-                    proc.kill()
+            systemctl("mod-host-pipe",False)
+            mod_host=False
             for p in pedalboards_button:
                 p.disabled=True
                 p.blur()
@@ -197,6 +189,20 @@ def mod_host_service(value):
     else:
         print("Cannot start mod-host, because jackd is not running")
 
+def start_mod_host():
+    global mod_host, mod_ui
+    systemctl("mod-ui",False)
+    systemctl("mod-host",False)
+    mod_ui=False
+    mod_host=systemctl("mod-host-pipe",True)
+
+def start_mod_ui():
+    global mod_host, mod_ui
+    systemctl("mod-host-pipe",False)
+    mod_host=False
+    systemctl("mod-host",True)
+    mod_ui=systemctl("mod-ui",True)
+
 def check_jack():
     jackwait=subprocess.call(JACKWAIT,shell=True)
     if(jackwait!=0):
@@ -204,42 +210,19 @@ def check_jack():
     else:
         return(True)
 
-def start_mod_host():
-    global mod_host
-
-    if(not mod_host):
-        mod_host_env = os.environ.copy()
-        if (mod_host_env.get("LD_LIBRARY_PATH")):
-            mod_host_env["LD_LIBRARY_PATH"] = "/usr/local/lib:" + mod_host_env["LD_LIBRARY_PATH"]
-        else:
-            mod_host_env["LD_LIBRARY_PATH"] = "/usr/local/lib"
-        mod_host_env["LV2_PATH"] = "/zynthian/zynthian-plugins/lv2:/zynthian/zynthian-my-plugins/lv2"
-        if (os.path.isfile(PARTRT) and os.access(PARTRT, os.X_OK)):
-            mod_host = subprocess.Popen(TAIL + " -f " + MODHOST_PIPE + "|" + PARTRT + " run " + PARTRT_OPTIONS + " rt " + MODHOST + " -i",shell=True, env=mod_host_env)
-        else:
-            mod_host = subprocess.Popen(TAIL + " -f " + MODHOST_PIPE + "|" + MODHOST + " -i", shell=True, env=mod_host_env)
-    else:
-        print("mod-host is already running.")
-
-def systemctl_mod_ui(run):
-    global mod_ui
-
+def systemctl(service,run):
     if(run==True):
-        mod_ui = subprocess.Popen(SYSTEMCTL+" start mod-ui",shell=True)
-        mod_ui=True
+        if(subprocess.call(shlex.split(SYSTEMCTL + " start "+service))!=0):
+            print("Cannot start %s" % service)
+            return(False)
+        else:
+            return(True)
     else:
-        mod_ui = subprocess.Popen(SYSTEMCTL + " stop mod-ui", shell=True)
-        mod_ui=None
-
-def systemctl_mod_host(run):
-    global mod_host
-
-    if(run==True):
-        mod_host = subprocess.Popen(SYSTEMCTL+" start mod-host",shell=True)
-        mod_host=True
-    else:
-        mod_host = subprocess.Popen(SYSTEMCTL + " stop mod-host", shell=True)
-        mod_host=None
+        if(subprocess.call(shlex.split(SYSTEMCTL + " stop "+service))!=0):
+            print("Cannot stop %s" % service)
+            return(False)
+        else:
+            return(True)
 
 def get_username():
     return pwd.getpwuid( os.getuid() )[ 0 ]
@@ -256,7 +239,7 @@ def tab():
 ##############################################################################
 
 def main():
-    global stage
+    global stage,mod_host
 
     #if(get_username()!='root'):
     #   print("Program must run as root.")
@@ -265,7 +248,6 @@ def main():
     if(check_jack()==False):
         print("jackd is not running")
     else:
-        systemctl_mod_host(False)
         start_mod_host()
 
     # Check for X11 or framebuffer
