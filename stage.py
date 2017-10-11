@@ -85,6 +85,9 @@ def main_gui():
         configure_jack_button=gui.Button("Restart Audio System")
     configure_jack_button.connect(gui.CLICK,jack_service,configure_jack_button)
     configure_container.add(configure_jack_button,500,10)
+    configure_halt_button=gui.Button("System halt")
+    configure_halt_button.connect(gui.CLICK,halt_service)
+    configure_container.add(configure_halt_button,800,10)
     # Tabs container ######################################################
     # Tab index group
     tab_index_group = gui.Group()
@@ -202,6 +205,9 @@ def jack_service(value):
         configure_mod_ui_button.disabled=False
         configure_mod_ui_button.value = gui.Label('Start MOD-UI')
         configure_mod_ui_button.chsize()
+
+def halt_service():
+    subprocess.call(shlex.split("/sbin/halt"))
 
 def start_mod_host():
     global mod_host, mod_ui
