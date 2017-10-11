@@ -2,19 +2,17 @@
 """
 Zynthian stage gui
 """
+
 import pygame
 import os, stat, sys
 import re
 import subprocess
-import shlex
+import pwd
 import jack
 import logging
-from pygame.locals import *
-from pgu import gui
 from time import sleep
 from threading import Thread
-
-# from pgu.gui import layout
+from pgu import gui
 
 ##############################################################################
 # Globals
@@ -33,6 +31,19 @@ SYSTEMCTL="/bin/systemctl"
 
 mod_ui=False
 mod_host=False
+
+refresh_time=2
+jclient=None
+thread=None
+exit_flag=False
+
+#Input Black List
+hw_black_list = [
+    #"Midi Through"
+]
+
+logger=logging.getLogger(__name__)
+logger.setLevel(logging.ERROR)
 
 ##############################################################################
 # Functions
@@ -196,6 +207,72 @@ def systemctl(service,run):
 
 def get_username():
     return pwd.getpwuid( os.getuid() )[ 0 ]
+
+##############################################################################
+# Jack autoconnect functions
+##############################################################################
+
+def midi_autoconnect():
+    print("X")
+    logger.info("Autoconnecting Midi ...")
+
+    # Get Physical MIDI-devices ...
+    hw_out=jclient.get_ports(is_output=True,is_physical=True,is_midi=True)
+    if len(hw_out)==0:
+        hw_out=[]
+    # Add ttymidi device ...
+    tty_out=jclient.get_ports("ttymidi",is_output=True,is_physical=False,is_midi=True)
+    try:
+        hw_out.append(tty_out[0])
+    except:
+        pass
+
+    # Remove HW Black-listed
+    for i,hw in enumerate(hw_out):
+        for v in hw_black_list:
+            #logger.debug("Element %s => %s " % (i,v) )
+            if v in str(hw):
+                hw_out.pop(i)
+
+    #logger.debug("Physical Devices: " + str(hw_out))
+
+	# Get Synth Engines
+    engines=jclient.get_ports(is_input=True,is_midi=True,is_physical=False)
+
+    #logger.debug("Engine Devices: " + str(engines))
+
+	# Connect Physical devices to Synth Engines
+    for hw in hw_out:
+        for engine in engines:
+            #logger.debug("Connecting HW "+str(hw)+" => "+str(engine))
+            try:
+                jclient.connect(hw,engine)
+            except:
+                logger.warning("Failed input device midi connection: %s => %s" % (str(hw),str(engine)))
+
+def autoconnect_thread():
+    while not exit_flag:
+        try:
+            midi_autoconnect()
+        except Exception as err:
+            logger.error("ERROR Autoconnecting: "+str(err))
+        sleep(refresh_time)
+
+def autoconnect_start(rt=2):
+    global refresh_time, exit_flag, jclient, thread
+    refresh_time=rt
+    exit_flag=False
+    try:
+        jclient=jack.Client("Zynthian_autoconnect")
+    except Exception as e:
+        logger.error("Failed to connect with Jack Server: %s" % (str(e)))
+    thread=Thread(target=autoconnect_thread, args=())
+    thread.daemon = True # thread dies with the program
+    thread.start()
+
+def autoconnect_stop(self):
+    global exit_flag
+    exit_flag=True
 
 ##############################################################################
 # Callback functions
