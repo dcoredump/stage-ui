@@ -51,7 +51,7 @@ logger.setLevel(logging.ERROR)
 ##############################################################################
 
 def main_gui():
-    global tab_index_group, tab_box, pedalboards_button, mod_host,configure_mod_host_button
+    global tab_index_group, tab_box, pedalboards_button, mod_host,configure_mod_ui_button,configure_mod_host_button,configure_jack_button
     pedalboards_button = []
 
     # Pedalboards container ######################################################
@@ -72,14 +72,20 @@ def main_gui():
     voice_container = gui.Container(width=1280, height=720)
     configure_container=gui.Container(width=1280,height=720)
     configure_mod_ui_button=gui.Button("Start MOD-UI")
-    configure_mod_ui_button.connect(gui.CLICK, mod_ui_service,configure_mod_ui_button)
+    configure_mod_ui_button.connect(gui.CLICK,mod_ui_service,configure_mod_ui_button)
     configure_container.add(configure_mod_ui_button,10,10)
     if(not mod_host):
         configure_mod_host_button=gui.Button("Start MOD-HOST")
     else:
         configure_mod_host_button=gui.Button("Stop MOD-HOST")
-    configure_mod_host_button.connect(gui.CLICK, mod_host_service,configure_mod_host_button)
-    configure_container.add(configure_mod_host_button,200,10)
+    configure_mod_host_button.connect(gui.CLICK,mod_host_service,configure_mod_host_button)
+    configure_container.add(configure_mod_host_button, 200, 10)
+    if(check_jack()==False):
+        configure_jack_button=gui.Button("Start Audio System")
+    else:
+        configure_jack_button=gui.Button("Stop Audio System")
+    configure_jack_button.connect(gui.CLICK,jack_service,configure_jack_button)
+    configure_container.add(configure_jack_button,300,10)
     # Tabs container ######################################################
     # Tab index group
     tab_index_group = gui.Group()
@@ -178,12 +184,30 @@ def mod_host_service(value):
     else:
         print("Cannot start mod-host, because jackd is not running")
 
+def jack_service(value):
+   if(check_jack()==False):
+       systemctl("jack2",False)
+       systemctl("jack2",True)
+       start_mod_host()
+
 def start_mod_host():
     global mod_host, mod_ui
     systemctl("mod-ui",False)
     systemctl("mod-host",False)
     mod_ui=False
     mod_host=systemctl("mod-host-pipe",True)
+    configure_mod_host_button.disabled=False
+    configure_mod_host_button.chsize()
+    configure_mod_host_button.value = gui.Label('Stop MOD-HOST')
+    configure_mod_ui_button.disabled=False
+    configure_mod_ui_button.chsize()
+    configure_mod_ui_button.value = gui.Label('Start MOD-HOST')
+    if(checK_jack()==False):
+        configure_mod_ui_button.value = gui.Label('Start Audio System')
+    else:
+        configure_mod_ui_button.value = gui.Label('Stop Audio System')
+    configure_mod_ui_button.disabled=False
+    configure_mod_ui_button.chsize()
 
 def check_jack():
     jackwait=subprocess.call(JACKWAIT,shell=True)
@@ -214,7 +238,6 @@ def get_username():
 ##############################################################################
 
 def midi_autoconnect():
-    print("X")
     logger.info("Autoconnecting Midi ...")
 
     # Get Physical MIDI-devices ...
@@ -289,15 +312,16 @@ def tab():
 def main():
     global stage,mod_host
 
-    #if(get_username()!='root'):
-    #   print("Program must run as root.")
-    #   exit(101)
+    if(get_username()!='root'):
+       print("Program must run as root.")
+       exit(101)
 
     if(check_jack()==False):
         print("jackd is not running")
+        exit(102)
     else:
         start_mod_host()
-        start_auto_connect()
+        start_autoconnect()
 
     # Check for X11 or framebuffer
     found = False
@@ -331,4 +355,4 @@ def main():
 
 if(__name__=="__main__"):
     main()
-    exit(999)
+    exit(0)
