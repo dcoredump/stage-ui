@@ -83,9 +83,9 @@ def main_gui():
     if(check_jack()==False):
         configure_jack_button=gui.Button("Start Audio System")
     else:
-        configure_jack_button=gui.Button("Stop Audio System")
+        configure_jack_button=gui.Button("Restart Audio System")
     configure_jack_button.connect(gui.CLICK,jack_service,configure_jack_button)
-    configure_container.add(configure_jack_button,400,10)
+    configure_container.add(configure_jack_button,500,10)
     # Tabs container ######################################################
     # Tab index group
     tab_index_group = gui.Group()
@@ -185,10 +185,22 @@ def mod_host_service(value):
         print("Cannot start mod-host, because jackd is not running")
 
 def jack_service(value):
-   if(check_jack()==False):
-       systemctl("jack2",False)
-       systemctl("jack2",True)
-       start_mod_host()
+    if(check_jack()==True):
+        systemctl("mod-ui",False)
+        mod_ui=False
+        systemctl("mod-host",False)
+        systemctl("mod-host-pipe",False)
+        mod_host=False
+        systemctl("jack2",False)
+        sleep(2)
+        systemctl("jack2",True)
+        mod_host=systemctl("mod-host-pipe",True)
+        configure_mod_host_button.disabled=False
+        configure_mod_host_button.value = gui.Label('Stop MOD-HOST')
+        configure_mod_host_button.chsize()
+        configure_mod_ui_button.disabled=False
+        configure_mod_ui_button.value = gui.Label('Start MOD-UI')
+        configure_mod_ui_button.chsize()
 
 def start_mod_host():
     global mod_host, mod_ui
@@ -196,18 +208,13 @@ def start_mod_host():
     systemctl("mod-host",False)
     mod_ui=False
     mod_host=systemctl("mod-host-pipe",True)
-    configure_mod_host_button.disabled=False
-    configure_mod_host_button.chsize()
-    configure_mod_host_button.value = gui.Label('Stop MOD-HOST')
-    configure_mod_ui_button.disabled=False
-    configure_mod_ui_button.chsize()
-    configure_mod_ui_button.value = gui.Label('Start MOD-HOST')
-    if(checK_jack()==False):
-        configure_jack_button.value = gui.Label('Start Audio System')
-    else:
-        configure_jack_button.value = gui.Label('Stop Audio System')
-    configure_jack_button.disabled=False
-    configure_jack_button.chsize()
+
+def start_mod_ui():
+    global mod_host, mod_ui
+    systemctl("mod-host-pipe",False)
+    mod_host=False
+    systemctl("mod-host",True)
+    mod_ui=systemctl("mod-ui",True)
 
 def check_jack():
     jackwait=subprocess.call(JACKWAIT,shell=True)
@@ -320,7 +327,7 @@ def main():
         print("jackd is not running")
         exit(102)
     else:
-        start_mod_host()
+        #start_mod_host()
         start_autoconnect()
 
     # Check for X11 or framebuffer
