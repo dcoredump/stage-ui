@@ -30,6 +30,9 @@ PARTRT_OPTIONS="-f99"
 JACKWAIT="/usr/local/bin/jack_wait -t1 -w"
 SYSTEMCTL="/bin/systemctl"
 
+SCREEN_X=1280
+SCREEN_Y=800
+
 mod_ui=False
 mod_host=False
 
@@ -37,6 +40,7 @@ refresh_time=2
 jclient=None
 thread=None
 exit_flag=False
+actual_pedalboard=None
 
 #Input Black List
 hw_black_list = [
@@ -53,10 +57,13 @@ logger.setLevel(logging.ERROR)
 ##############################################################################
 
 def main_gui():
-    global tab_index_group, tab_box, mod_host, configure_mod_ui_button, configure_mod_host_button, configure_jack_button
+    global tab_index_group, tab_box, mod_host, configure_mod_ui_button, configure_mod_host_button, configure_jack_button, voice_container
 
-    # Pedalboards container ######################################################
-    pedalboards_container=gui.Container(width=1280,height=720)
+    # Voice container ###########################################################
+    voice_container = gui.Container(width=SCREEN_X, height=SCREEN_Y)
+
+    # Pedalboards container #####################################################
+    pedalboards_container=gui.Container(width=SCREEN_X,height=SCREEN_Y)
     y=10
     for p in get_pedalboard_names():
         pedalboards_button.append(gui.Button(p))
@@ -68,8 +75,7 @@ def main_gui():
         blur_pedalboard_buttons(True)
 
     # Configure container ######################################################
-    voice_container = gui.Container(width=1280, height=720)
-    configure_container=gui.Container(width=1280,height=720)
+    configure_container = gui.Container(width=SCREEN_X, height=SCREEN_Y)
     configure_mod_ui_button=gui.Button("Start MOD-UI")
     configure_mod_ui_button.connect(gui.CLICK,mod_ui_service,configure_mod_ui_button)
     configure_container.add(configure_mod_ui_button,10,10)
@@ -103,8 +109,8 @@ def main_gui():
     tab_index_table.td(tab_index_button)
     tab_index_table.tr()
     # Tab box
-    spacer = gui.Spacer(1280, 720)
-    tab_box = gui.ScrollArea(spacer, height=720)
+    spacer = gui.Spacer(SCREEN_X, SCREEN_Y)
+    tab_box = gui.ScrollArea(spacer, height=SCREEN_Y)
     tab_index_table.td(tab_box, style={'border': 1}, colspan=40)
 
     return (tab_index_table)
@@ -129,26 +135,31 @@ def get_pedalboard_names():
 
 
 def load_pedalboard(pedalboard):
+    global actual_pedalboard,voice_container
     if(mod_ui==False and mod_host==True):
         if (pedalboard == "default"):
             pedalboard_ttl_name = "Default.ttl"
         else:
             pedalboard_ttl_name = pedalboard + ".ttl"
 
+        if(actual_pedalboard):
+            voice_container.remove(actual_pedalboard)
+
         if (stat.S_ISFIFO(os.stat(MODHOST_PIPE).st_mode)):
             if (subprocess.call("echo \"remove -1\" >" + MODHOST_PIPE, shell=True)==0):
-                print("Cleanup pedalboard.")
+                logging.info("Cleanup pedalboard.")
             else:
-                print("Cleanup pedalboard failed.")
+                logging.warning("Cleanup pedalboard failed.")
 
             if (subprocess.call(PEDALBOARD2MODHOST + " " + PEDALBOARDS_PATH + "/" + pedalboard + ".pedalboard/" + pedalboard_ttl_name + " > " + MODHOST_PIPE, shell=True)==0):
-                print("Success.")
+                logging.info("Pedalboard "+pedalboard+" load success.")
+                actual_pedalboard=voice_container.add(gui.Label(pedalboard),10,10)
             else:
-                print("Problem.")
+                logging.warning("Pedalboard "+pedalboard+" load problem.")
         else:
-            print(MODHOST_PIPE + " is not a named pipe.")
+            logging.warning(MODHOST_PIPE + " is not a named pipe.")
     else:
-        print("Loading of pedalboards is disabled during a running mod-ui.")
+        logging.warning("Loading of pedalboards is disabled during a running mod-ui.")
 
 def mod_ui_service(value):
     global mod_ui,mod_host
@@ -160,7 +171,7 @@ def mod_ui_service(value):
             configure_mod_host_button.disabled=True
             configure_mod_host_button.blur()
             configure_mod_host_button.chsize()
-            print("MOD-UI started.")
+            logging.info("MOD-UI started.")
         else:
             start_mod_host()
             for pb in pedalboards_button:
@@ -169,9 +180,9 @@ def mod_ui_service(value):
             configure_mod_host_button.disabled=False
             configure_mod_host_button.chsize()
             value.value = gui.Label('Start MOD-UI')
-            print("MOD-UI stopped.")
+            logging.info("MOD-UI stopped.")
     else:
-        print("Cannot start mod-ui, because jackd is not running")
+        logging.ciritical("Cannot start mod-ui, because jackd is not running")
 
 def mod_host_service(value):
     global mod_host
@@ -186,7 +197,7 @@ def mod_host_service(value):
             blur_pedalboard_buttons(True)
             value.value = gui.Label('Start MOD-HOST')
     else:
-        print("Cannot start mod-host, because jackd is not running")
+        logging.ciritcal("Cannot start mod-host, because jackd is not running")
 
 def jack_service(value):
     if(check_jack()==True):
@@ -217,9 +228,11 @@ def start_mod_host():
     mod_host=systemctl("mod-host-pipe",True)
     if(mod_host==True):
         blur_pedalboard_buttons(False)
+    start_autoconnect()
 
 def start_mod_ui():
     global mod_host, mod_ui
+    stop_autoconnect()
     systemctl("mod-host-pipe",False)
     mod_host=False
     systemctl("mod-host",True)
@@ -228,7 +241,7 @@ def start_mod_ui():
         blur_pedalboard_buttons(True)
 
 def check_jack():
-    jackwait=subprocess.call(JACKWAIT,shell=True)
+    jackwait=subprocess.call(JACKWAIT+">/dev/null 2>&1",shell=True)
     if(jackwait!=0):
         return(False)
     else:
@@ -237,13 +250,13 @@ def check_jack():
 def systemctl(service,run):
     if(run==True):
         if(subprocess.call(shlex.split(SYSTEMCTL + " start "+service))!=0):
-            print("Cannot start %s" % service)
+            logging.error("Cannot start %s" % service)
             return(False)
         else:
             return(True)
     else:
         if(subprocess.call(shlex.split(SYSTEMCTL + " stop "+service))!=0):
-            print("Cannot stop %s" % service)
+            logging.error("Cannot stop %s" % service)
             return(False)
         else:
             return(True)
@@ -312,7 +325,7 @@ def start_autoconnect(rt=2):
     thread.daemon = True # thread dies with the program
     thread.start()
 
-def autoconnect_stop(self):
+def stop_autoconnect():
     global exit_flag
     exit_flag=True
 
@@ -330,16 +343,17 @@ def tab():
 def main():
     global stage,mod_host
 
+    logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
+
     if(get_username()!='root'):
-       print("Program must run as root.")
+       logging.critical("Program must run as root.")
        exit(101)
 
     if(check_jack()==False):
-        print("jackd is not running")
+        logging.critical("jackd is not running")
         exit(102)
     else:
         start_mod_host()
-        start_autoconnect()
 
     # Check for X11 or framebuffer
     found = False
@@ -353,23 +367,24 @@ def main():
             try:
                 pygame.display.init()
             except pygame.error:
-                print("Driver: %s failed." % driver)
+                logging.warning("Driver: %s failed." % driver)
                 continue
+            logging.info("Driver: %s" % driver)
             found = True
             break
         if not found:
             raise Exception('No suitable video driver found!')
-    else:
         if found:
             size = (pygame.display.Info().current_w, pygame.display.Info().current_h)
             pygame.display.set_mode(size, pygame.FULLSCREEN)
+            logging.info("Screen %s" % str(size))
 
     # Start gui
     theme = gui.Theme("/zynthian/zynthian-stage-ui/themes/default")
     stage = gui.Desktop(theme=theme)
     stage.connect(gui.QUIT, stage.quit, None)
     stage.run(main_gui())
-    print("End.")
+    logging.info("End.")
 
 if(__name__=="__main__"):
     main()
