@@ -200,12 +200,15 @@ def mod_host_service(value):
         logging.ciritcal("Cannot start mod-host, because jackd is not running")
 
 def jack_service(value):
+    global mod_ui,mod_host
     if(check_jack()==True):
-        systemctl("mod-ui",False)
-        mod_ui=False
+        if(mod_ui):
+            systemctl("mod-ui",False)
+            mod_ui=False
         systemctl("mod-host",False)
-        systemctl("mod-host-pipe",False)
-        mod_host=False
+        if(mod_host):
+            systemctl("mod-host-pipe",False)
+            mod_host=False
         systemctl("jack2",False)
         sleep(2)
         systemctl("jack2",True)
@@ -376,7 +379,7 @@ def main():
             raise Exception('No suitable video driver found!')
         if found:
             size = (pygame.display.Info().current_w, pygame.display.Info().current_h)
-            pygame.display.set_mode(size, pygame.FULLSCREEN)
+            #pygame.display.set_mode(size, pygame.FULLSCREEN)
             logging.info("Screen %s" % str(size))
 
     # Start gui
