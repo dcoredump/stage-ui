@@ -47,16 +47,10 @@ hw_black_list = [
 # Kivy class
 ##############################################################################
 class Stage(BoxLayout):
-    label_wid = ObjectProperty()
-    info = StringProperty()
-
-    def do_action(self):
-        self.label_wid.text = 'My label after button press'
-        self.info = 'New info text'
-
+    pass
+	
 class StageApp(App):
-    def build(self):
-        return Stage(info='Hello world') 
+    pass
 
 ##############################################################################
 # Functions
@@ -148,6 +142,7 @@ def start_mod_host():
     mod_ui=False
     mod_host=systemctl("mod-host-pipe",True)
     start_autoconnect()
+    return(mod_host)
 
 def start_mod_ui():
     global mod_host, mod_ui
@@ -157,6 +152,7 @@ def start_mod_ui():
     mod_host=False
     systemctl("mod-host",True)
     mod_ui=systemctl("mod-ui",True)
+    return(mod_ui)
 
 def check_jack():
     Logger.info("check_jack()")

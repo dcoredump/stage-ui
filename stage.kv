@@ -1,14 +1,38 @@
-<Stage>:
-    label_wid: my_custom_label
+Stage:
+
+<Stage>: #
+    orientation: 'vertical'
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint: 1.0,0.1
+        ToggleButton:
+            text: "Sound"
+            on_state: _screen_manager.current = 'Sound'
+
+        ToggleButton:
+            text: "Pedalboard"
+            on_state: _screen_manager.current = 'Pedalboard'
+
+        ToggleButton:
+            text: "System"
+            on_state: _screen_manager.current = 'System'
 
     BoxLayout:
         orientation: 'vertical'
-        padding: 20
 
-        Button:
-            text: 'My controller info is: ' + root.info
-            on_press: root.do_action()
+        ScreenManager:
+            id: _screen_manager
+            Screen:
+                name: 'Sound'
+                Label:
+                    text: 'Sound'
 
-        Label:
-            id: my_custom_label
-            text: 'My label before button press'
+            Screen:
+                name: 'Pedalboard'
+                Label:
+                    text: 'Pedalboard'
+
+            Screen:
+                name: 'System'
+                Label:
+                    text: 'System'
