@@ -57,7 +57,8 @@ StageRoot:
                     ToggleButton:
                         id: mod_ui_button_id
                         text: "MOD-UI"
-                        on_state: mod_ui_button_id.state = "down" if stage.STATE['mod-ui']==True else "normal"
+                        state: root.set_modui_button_state()
+                        on_state: root.change_modui_button_state()
                     Button:
                         text: "Restart mod-host"
                     ToggleButton:

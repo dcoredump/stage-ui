@@ -58,6 +58,21 @@ class StageScreens(BoxLayout):
         else:
             systemctl("jack2",True)
 
+    def set_modui_button_state(self):
+        if(STATE['mod-ui']==True):
+            return("down")
+        else:
+            return("normal")
+
+    def change_modui_button_state(self):
+        if(STATE['mod-ui']==True):
+            systemctl("mod-host",False)
+            systemctl("mod-ui",False)
+            systemctl("mod-host-pipe",True)
+        else:
+            systemctl("mod-host",True)
+            systemctl("mod-ui",True)
+
 ##############################################################################
 # Functions
 ##############################################################################
