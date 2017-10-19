@@ -28,8 +28,9 @@ PARTRT_OPTIONS="-f99"
 JACKWAIT="/usr/local/bin/jack_wait -t1 -w"
 SYSTEMCTL="/bin/systemctl"
 
-STATE['mod_ui']=False
-STATE['mod_host']=False
+STATE=dict()
+STATE['mod-ui']=False
+STATE['mod-host']=False
 
 ##############################################################################
 # Kivy class
@@ -42,34 +43,47 @@ class StageRoot(BoxLayout):
     pass
 
 class StageScreens(BoxLayout):
+    jack_button=ObjectProperty()
     mod_ui_button=ObjectProperty()
 
-    def check_jack(self):
-        Logger.info("check_jack()")
-        jackwait=subprocess.call(JACKWAIT+">/dev/null 2>&1",shell=True)
-        if(jackwait!=0):
-            return(False)
+    def set_jack_button_state(self):
+        if(check_jack()==True):
+            return("down")
         else:
-            return(True)
+            return("normal")
 
-    def systemctl(self,service,run):
-        Logger.info("systemctl() %s %s" % (service,run))
-        if(run==True):
-            if(subprocess.call(shlex.split(SYSTEMCTL + " start "+service))!=0):
-                Logger.error("Cannot start %s" % service)
-                return(False)
-            else:
-                return(True)
+    def change_jack_button_state(self):
+        if(check_jack()==True):
+            systemctl("jack2",False)
         else:
-            if(subprocess.call(shlex.split(SYSTEMCTL + " stop "+service))!=0):
-                Logger.error("Cannot stop %s" % service)
-                return(False)
-            else:
-                return(True)
+            systemctl("jack2",True)
 
 ##############################################################################
 # Functions
 ##############################################################################
+
+def check_jack():
+    Logger.info("check_jack()")
+    jackwait=subprocess.call(JACKWAIT+">/dev/null 2>&1",shell=True)
+    if(jackwait!=0):
+        return(False)
+    else:
+        return(True)
+
+def systemctl(service,run):
+    Logger.info("systemctl() %s %s" % (service,run))
+    if(run==True):
+        if(subprocess.call(shlex.split(SYSTEMCTL + " start "+service))!=0):
+            Logger.error("Cannot start %s" % service)
+            return(False)
+        else:
+            return(True)
+    else:
+        if(subprocess.call(shlex.split(SYSTEMCTL + " stop "+service))!=0):
+            Logger.error("Cannot stop %s" % service)
+            return(False)
+        else:
+            return(True)
 
 def get_username():
     return pwd.getpwuid(os.getuid())[0]

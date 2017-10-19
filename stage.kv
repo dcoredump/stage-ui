@@ -1,10 +1,13 @@
+#: import stage stage
+
 StageRoot:
 
 <StageRoot>:
     StageScreens
 
 <StageScreens>:
-    mod_ui_Button: mod_ui_button_id
+    jack_button: jack_button_id
+    mod_ui_button: mod_ui_button_id
     orientation: 'vertical'
     BoxLayout:
         orientation: 'horizontal'
@@ -53,12 +56,15 @@ StageRoot:
                     orientation: 'vertical'
                     ToggleButton:
                         id: mod_ui_button_id
-                        text: "Start MOD-UI"
-                        on_state: mod_ui_button_id.state = "down" if root.check_jack()==True else "normal"
+                        text: "MOD-UI"
+                        on_state: mod_ui_button_id.state = "down" if stage.STATE['mod-ui']==True else "normal"
                     Button:
                         text: "Restart mod-host"
-                    Button:
-                        text: "Restart jack"
+                    ToggleButton:
+                        id: jack_button_id
+                        text: "Jack"
+                        state: root.set_jack_button_state()
+                        on_state: root.change_jack_button_state()
                     Button:
                         text: "Halt system"
             
