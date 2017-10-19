@@ -1,38 +1,64 @@
-Stage:
+StageRoot:
 
-<Stage>: #
+<StageRoot>:
+    StageScreens
+
+<StageScreens>:
+    mod_ui_Button: mod_ui_button_id
     orientation: 'vertical'
     BoxLayout:
         orientation: 'horizontal'
         size_hint: 1.0,0.1
-        ToggleButton:
-            text: "Sound"
-            on_state: _screen_manager.current = 'Sound'
-
-        ToggleButton:
+        Button:
             text: "Pedalboard"
             on_state: _screen_manager.current = 'Pedalboard'
-
-        ToggleButton:
+        Button:
+            text: "Sound"
+            on_state: _screen_manager.current = 'Sound'
+        Button:
             text: "System"
             on_state: _screen_manager.current = 'System'
 
     BoxLayout:
         orientation: 'vertical'
-
         ScreenManager:
             id: _screen_manager
+            Screen:
+                name: 'Pedalboard'
+                BoxLayout:
+                    orientation: 'horizontal'
+                    padding: 40
+                    spacing: 40
+                    Label:
+                        text: "Area for List of pedalboards"
+                    BoxLayout:
+                        orientation: 'vertical'
+                        padding: 40
+                        spacing: 40
+                        Label:
+                            text: "Preset1"
+                        Label:
+                            text: "Preset2"
+                        Label:
+                            text: "Preset3"
             Screen:
                 name: 'Sound'
                 Label:
                     text: 'Sound'
-
-            Screen:
-                name: 'Pedalboard'
-                Label:
-                    text: 'Pedalboard'
-
             Screen:
                 name: 'System'
-                Label:
-                    text: 'System'
+                BoxLayout:
+                    padding: 40
+                    spacing: 40
+                    orientation: 'vertical'
+                    ToggleButton:
+                        id: mod_ui_button_id
+                        text: "Start MOD-UI"
+                        on_state: mod_ui_button_id.state = "down" if root.check_jack()==True else "normal"
+                    Button:
+                        text: "Restart mod-host"
+                    Button:
+                        text: "Restart jack"
+                    Button:
+                        text: "Halt system"
+            
