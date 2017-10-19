@@ -7,7 +7,8 @@ StageRoot:
 
 <StageScreens>:
     jack_button: jack_button_id
-    mod_ui_button: mod_ui_button_id
+    modui_button: mod_ui_button_id
+    modhost_button: mod_host_button_id
     orientation: 'vertical'
     BoxLayout:
         orientation: 'horizontal'
@@ -59,13 +60,25 @@ StageRoot:
                         text: "MOD-UI"
                         state: root.set_modui_button_state()
                         on_state: root.change_modui_button_state()
-                    Button:
-                        text: "Restart mod-host"
+                    ToggleButton:
+                        id: mod_host_button_id
+                        text: "MOD-HOST"
+                        state: root.set_modhost_button_state()
+                        on_state: root.change_modhost_button_state()
                     ToggleButton:
                         id: jack_button_id
-                        text: "Jack"
+                        text: "JACK"
                         state: root.set_jack_button_state()
                         on_state: root.change_jack_button_state()
-                    Button:
-                        text: "Halt system"
+                    BoxLayout:
+                        spacing: 40
+                        Button:
+                            text: "Restart"
+                            on_press: stage.quit()
+                        Button:
+                            text: "Halt system"
+                            on_press: stage.halt()
+                        Button:
+                            text: "Restart system"
+                            on_press: stage.restart()
             
