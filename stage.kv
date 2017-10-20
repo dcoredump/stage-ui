@@ -9,6 +9,7 @@ StageRoot:
     jack_button: jack_button_id
     modui_button: mod_ui_button_id
     modhost_button: mod_host_button_id
+    preset_list: preset_list_id
     orientation: 'vertical'
     BoxLayout:
         orientation: 'horizontal'
@@ -33,8 +34,9 @@ StageRoot:
                     orientation: 'horizontal'
                     padding: 40
                     spacing: 40
-                    Label:
-                        text: "Area for List of pedalboards"
+                    ListView:
+                        id: preset_list_id
+                        item_strings: stage.get_pedalboard_names()
                     BoxLayout:
                         orientation: 'vertical'
                         padding: 40
