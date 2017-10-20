@@ -139,15 +139,15 @@ def quit():
     systemctl("mod-host",False)
     systemctl("mod-host-pipe",False)
     systemctl("jack2",False)
-    quit()
+    exit(0)
 
 def halt():
     subprocess.call("/sbin/halt",shell=True)
-    quit()
+    exit(0)
 
 def restart():
     subprocess.call("/sbin/reboot",shell=True)
-    quit()
+    exit(0)
 
 def get_username():
     return pwd.getpwuid(os.getuid())[0]
