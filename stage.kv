@@ -1,4 +1,10 @@
 #: import stage stage
+#: import ListItemButton kivy.uix.listview.ListItemButton
+#: import ListAdapter kivy.adapters.listadapter.ListAdapter
+
+<SelectPedalboardButton>:
+    size: (100, '80dp')
+    on_press: stage.load_pedalboard(self.text)
 
 StageRoot:
 
@@ -17,9 +23,9 @@ StageRoot:
         Button:
             text: "Pedalboard"
             on_state: _screen_manager.current = 'Pedalboard'
-        Button:
-            text: "Sound"
-            on_state: _screen_manager.current = 'Sound'
+        #Button:
+        #    text: "Sound"
+        #    on_state: _screen_manager.current = 'Sound'
         Button:
             text: "System"
             on_state: _screen_manager.current = 'System'
@@ -32,11 +38,12 @@ StageRoot:
                 name: 'Pedalboard'
                 BoxLayout:
                     orientation: 'horizontal'
-                    padding: 40
-                    spacing: 40
+                    padding: 20
+                    spacing: 20
                     ListView:
                         id: preset_list_id
-                        item_strings: stage.get_pedalboard_names()
+                        adapter:
+                            ListAdapter(data=stage.get_pedalboard_names(), allow_empty_selection=False, cls=stage.SelectPedalboardButton)
                     BoxLayout:
                         orientation: 'vertical'
                         padding: 40
@@ -83,4 +90,3 @@ StageRoot:
                         Button:
                             text: "Restart system"
                             on_press: stage.restart()
-            

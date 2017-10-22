@@ -5,13 +5,13 @@ Zynthian stage gui
 from kivy.uix.boxlayout import BoxLayout
 from kivy.app import App
 from kivy.properties import ObjectProperty
+from kivy.uix.listview import ListItemButton
 from kivy.logger import Logger
 import os, stat, sys, re
 import subprocess
 import shlex
 import pwd
 from time import sleep
-from threading import Thread
 
 ##############################################################################
 # Globals
@@ -37,10 +37,14 @@ class StageApp(App):
 class StageRoot(BoxLayout):
     pass
 
+class SelectPedalboardButton(ListItemButton):
+     pass
+
 class StageScreens(BoxLayout):
     modui_button=ObjectProperty()
     modhost_button=ObjectProperty()
     jack_button=ObjectProperty()
+    preset_list=ObjectProperty()
 
     def set_modui_button_state(self):
         if(systemctlstatus('mod-ui')==True and systemctlstatus('jack2')==True):
@@ -118,8 +122,6 @@ def load_pedalboard(pedalboard):
 
             if (subprocess.call(PEDALBOARD2MODHOST + " " + PEDALBOARDS_PATH + "/" + pedalboard + ".pedalboard/" + pedalboard_ttl_name + " > " + MODHOST_PIPE, shell=True)==0):
                 Logger.info("Pedalboard "+pedalboard+" load success.")
-                subprocess.call("/usr/local/bin/jack_alias \'system:midi_capture_1\' ttymidi:MIDI_in", shell=True)
-                subprocess.call("echo \"connect \'system:midi_capture_1\' mod-host:midi_in\" >" + MODHOST_PIPE, shell=True)
             else:
                 Logger.warning("Pedalboard "+pedalboard+" load problem.")
         else:
@@ -199,7 +201,6 @@ def main():
             exit(101)
         Logger.info("jackd was not running, started.")
     mod_service("mod-host-pipe",True)
-    sleep(1)
     load_pedalboard("Dexed")
 
     Logger.info("Start StageApp.")
