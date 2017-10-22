@@ -105,7 +105,7 @@ def get_pedalboard_names():
 
 def load_pedalboard(pedalboard):
     Logger.info("load_pedalboard() %s" % load_pedalboard)
-    if(systemctlstatus('mod-ui') and systemctlstatus('jack2')):
+    if(systemctlstatus('mod-host-pipe') and systemctlstatus('jack2')):
         if (pedalboard == "default"):
             pedalboard_ttl_name = "Default.ttl"
         else:
@@ -118,7 +118,8 @@ def load_pedalboard(pedalboard):
 
             if (subprocess.call(PEDALBOARD2MODHOST + " " + PEDALBOARDS_PATH + "/" + pedalboard + ".pedalboard/" + pedalboard_ttl_name + " > " + MODHOST_PIPE, shell=True)==0):
                 Logger.info("Pedalboard "+pedalboard+" load success.")
-                actual_pedalboard=voice_container.add(gui.Label(pedalboard),10,10)
+                subprocess.call("/usr/local/bin/jack_alias \'system:midi_capture_1\' ttymidi:MIDI_in", shell=True)
+                subprocess.call("echo \"connect \'system:midi_capture_1\' mod-host:midi_in\" >" + MODHOST_PIPE, shell=True)
             else:
                 Logger.warning("Pedalboard "+pedalboard+" load problem.")
         else:
@@ -198,8 +199,8 @@ def main():
             exit(101)
         Logger.info("jackd was not running, started.")
     mod_service("mod-host-pipe",True)
-
-    load_pedalboard("EPiano")
+    sleep(1)
+    load_pedalboard("Dexed")
 
     Logger.info("Start StageApp.")
     StageApp().run()
