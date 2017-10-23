@@ -38,7 +38,7 @@ class StageRoot(BoxLayout):
     pass
 
 class SelectPedalboardButton(ListItemButton):
-     pass
+    pass
 
 class StageScreens(BoxLayout):
     modui_button=ObjectProperty()
@@ -109,6 +109,10 @@ def get_pedalboard_names():
 
 def load_pedalboard(pedalboard):
     Logger.info("load_pedalboard() %s" % load_pedalboard)
+
+    mod_service("mod-host-pipe",False)
+    mod_service("mod-host-pipe",True)
+   
     if(systemctlstatus('mod-host-pipe') and systemctlstatus('jack2')):
         if (pedalboard == "default"):
             pedalboard_ttl_name = "Default.ttl"
@@ -122,6 +126,7 @@ def load_pedalboard(pedalboard):
 
             if (subprocess.call(PEDALBOARD2MODHOST + " " + PEDALBOARDS_PATH + "/" + pedalboard + ".pedalboard/" + pedalboard_ttl_name + " > " + MODHOST_PIPE, shell=True)==0):
                 Logger.info("Pedalboard "+pedalboard+" load success.")
+                sleep(3)
             else:
                 Logger.warning("Pedalboard "+pedalboard+" load problem.")
         else:
@@ -200,8 +205,6 @@ def main():
             Logger.critical("jackd is not running")
             exit(101)
         Logger.info("jackd was not running, started.")
-    mod_service("mod-host-pipe",True)
-    load_pedalboard("Dexed")
 
     Logger.info("Start StageApp.")
     StageApp().run()

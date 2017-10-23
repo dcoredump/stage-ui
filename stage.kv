@@ -2,11 +2,11 @@
 #: import ListItemButton kivy.uix.listview.ListItemButton
 #: import ListAdapter kivy.adapters.listadapter.ListAdapter
 
+StageRoot:
+
 <SelectPedalboardButton>:
     size: (100, '80dp')
     on_press: stage.load_pedalboard(self.text)
-
-StageRoot:
 
 <StageRoot>:
     StageScreens
@@ -16,6 +16,7 @@ StageRoot:
     modui_button: mod_ui_button_id
     modhost_button: mod_host_button_id
     preset_list: preset_list_id
+
     orientation: 'vertical'
     BoxLayout:
         orientation: 'horizontal'
@@ -43,21 +44,22 @@ StageRoot:
                     ListView:
                         id: preset_list_id
                         adapter:
-                            ListAdapter(data=stage.get_pedalboard_names(), allow_empty_selection=False, cls=stage.SelectPedalboardButton)
-                    BoxLayout:
-                        orientation: 'vertical'
-                        padding: 40
-                        spacing: 40
-                        Label:
-                            text: "Preset1"
-                        Label:
-                            text: "Preset2"
-                        Label:
-                            text: "Preset3"
-            Screen:
-                name: 'Sound'
-                Label:
-                    text: 'Sound'
+                            #ListAdapter(data=stage.get_pedalboard_names(), allow_empty_selection=False, selection_mode='single', cls=stage.SelectPedalboardButton)
+                            ListAdapter(data=stage.get_pedalboard_names(), selection_mode='single', cls=stage.SelectPedalboardButton)
+                    #BoxLayout:
+                    #    orientation: 'vertical'
+                    #    padding: 40
+                    #    spacing: 40
+                    #    Label:
+                    #        text: "Preset1"
+                    #    Label:
+                    #        text: "Preset2"
+                    #    Label:
+                    #        text: "Preset3"
+            #Screen:
+            #    name: 'Sound'
+            #    Label:
+            #        text: 'Sound'
             Screen:
                 name: 'System'
                 BoxLayout:
