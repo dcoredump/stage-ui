@@ -12,9 +12,10 @@ StageRoot:
     StageScreens
 
 <StageScreens>:
-    jack_button: jack_button_id
     modui_button: mod_ui_button_id
+    jack_button: jack_button_id
     preset_list: preset_list_id
+    mod_host_status: mod_host_status_id
 
     orientation: 'vertical'
     BoxLayout:
@@ -29,7 +30,6 @@ StageRoot:
         Button:
             text: "System"
             on_state: _screen_manager.current = 'System'
-
     BoxLayout:
         orientation: 'vertical'
         ScreenManager:
@@ -85,3 +85,17 @@ StageRoot:
                         Button:
                             text: "Reboot system"
                             on_press: stage.restart()
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint: 1.0,0.08
+        padding: 10
+        spacing: 10
+        Image:
+            height: 40
+            source: 'zynthian-stage-logo.png'
+        Label:
+            id: show_jack_xrun_id
+            text: str(stage.xrun_counter)
+            color: 1,0,0,1
+        Label:
+            id: mod_host_status_id
