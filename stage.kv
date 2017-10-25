@@ -15,7 +15,6 @@ StageRoot:
     modui_button: mod_ui_button_id
     jack_button: jack_button_id
     preset_list: preset_list_id
-    mod_host_status: mod_host_status_id
 
     orientation: 'vertical'
     BoxLayout:
@@ -94,8 +93,7 @@ StageRoot:
             height: 40
             source: 'zynthian-stage-logo.png'
         Label:
-            id: show_jack_xrun_id
-            text: str(stage.xrun_counter)
+            id: xrun_counter_id
             color: 1,0,0,1
         Label:
             id: mod_host_status_id

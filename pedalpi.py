@@ -35,6 +35,7 @@ modhost.connect()
 
 pedalboard = Pedalboard('MDA-EP')
 builder = Lv2EffectBuilder()
+builder.reload(builder.lv2_plugins_data())
 ep = builder.build('http://moddevices.com/plugins/mda/EPiano')
 #ep = builder.build('https://github.com/dcoredump/dexed.lv2')
 #ep = builder.build('http://tytel.org/helm')

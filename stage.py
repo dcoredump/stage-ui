@@ -5,26 +5,17 @@ Zynthian stage gui
 from kivy.uix.boxlayout import BoxLayout
 from kivy.app import App
 from kivy.properties import ObjectProperty
-from kivy.properties import StringProperty
+from kivy.properties import NumericProperty
 from kivy.uix.listview import ListItemButton
 from kivy.logger import Logger
 from kivy.clock import Clock
-#from pluginsmanager.model.connection import Connection
-#from pluginsmanager.model.midi_connection import MidiConnection
-#from pluginsmanager.observer.autosaver.autosaver import Autosaver
-from pluginsmanager.observer.mod_host.mod_host import ModHost
-from pluginsmanager.model.pedalboard import Pedalboard
-from pluginsmanager.model.lv2.lv2_effect_builder import Lv2EffectBuilder
-from pluginsmanager.model.system.system_effect import SystemEffect
-from pluginsmanager.model.system.system_effect_builder import SystemEffectBuilder
-from pluginsmanager.jack.jack_client import JackClient
-#from pluginsmanager.banks_manager import BanksManager
-#from pluginsmanager.model.bank import Bank
 import os, stat, sys, re
 import subprocess
 import shlex
 import pwd
+import jack
 from time import sleep
+from pprint import pprint
 
 ##############################################################################
 # Globals
@@ -33,17 +24,11 @@ from time import sleep
 PEDALBOARDS_PATH = os.environ['HOME'] + "/.pedalboards"
 PEDALBOARD2MODHOST = "./pedalboard2modhost"
 JACKWAIT="/usr/local/bin/jack_wait -t1 -w"
+JACKALIAS="/usr/local/bin/jack_alias"
 SYSTEMCTL="/bin/systemctl"
 MODHOST_PIPE="/tmp/mod-host"
 
-# globals for PedalPi (placeholder)
-client = None
-sys_effect = None
-autosaver = None
-manager = None
-modhost = None
 xrun_counter=0
-jack_status_message=(0,"")
 
 ##############################################################################
 # Kivy class
@@ -59,6 +44,7 @@ class SelectPedalboardButton(ListItemButton):
     pass
 
 class StageScreens(BoxLayout):
+    global xrun_counter
     modui_button=ObjectProperty()
     jack_button=ObjectProperty()
     preset_list=ObjectProperty()
@@ -73,10 +59,17 @@ class StageScreens(BoxLayout):
     def change_modui_button_state(self):
         if(systemctlstatus('mod-ui')==True):
             mod_service("mod-ui",False)
+            mod_service("mod-host",False)
+            mod_service("mod-host-pipe",True)
         else:
+            mod_service("mod-host-pipe",False)
+            mod_service("mod-host",True)
             mod_service("mod-ui",True)
 
     def restart_jack(self):
+        mod_service("mod-ui",False)
+        mod_service("mod-host",False)
+        self.modui_button.state='normal'
         systemctl("jack2",False)
         startup_jack()
 
@@ -95,6 +88,8 @@ def get_pedalboard_names():
 def load_pedalboard(pedalboard):
     Logger.info("load_pedalboard() %s" % load_pedalboard)
 
+    mod_service("mod-ui",False)
+    mod_service("mod-host",False)
     mod_service("mod-host-pipe",False)
     mod_service("mod-host-pipe",True)
    
@@ -160,6 +155,7 @@ def systemctl(service,run):
 
 def quit():
     mod_service("mod-ui",False)
+    mod_service("mod-host",False)
     exit(0)
 
 def halt():
@@ -189,29 +185,32 @@ def startup_jack():
 
     Logger.info("startup_jack()")
 
-    xrun_counter=0
+    mod_service("mod-ui",False)
+    mod_service("mod-host",False)
 
-    if(client):
-        client.close()
+    xrun_counter=0
 
     while True:
         if(check_jack()==False):
             if(systemctl("jack2",True)==False):
                 Logger.critical("jackd is not running")
                 exit(101)
-                if(systemctl("mod-host",True)==False):
-                    Logger.critical("mod-host is not running")
+                if(systemctl("mod-host-pipe",True)==False):
+                    Logger.critical("mod-host-pipe is not running")
                     exit(101)
-                Logger.info("mod-host was not running, started.")
+                Logger.info("mod-host-pipe was not running, started.")
             else:
                 break
         else:
             break
 
-    client = JackClient()
-    client.xrun_callback=lambda delay: xrun(delay)
-    client.shutdown_callback = lambda status, reason: jack_status(status, reason)
-
+def midi_autoconnect(self):
+    tty_out=client.get_ports("ttymidi", is_output=True, is_physical=False, is_midi=True)
+    if(len(tty_out)==0):
+        hw_out=client.get_ports(is_midi=True, is_audio=False, is_output=False, is_physical=False)
+        if(len(hw_out)>0):
+            Logger.info("jack_alias %s => ttymidi:MIDI_in" % str(hw_out[0]))
+            #subprocess.call(JACKALIAS+" "+str(hw_out[0])+" ttymidi:MIDI_in",shell=True)
 
 ##############################################################################
 # Main
@@ -222,6 +221,11 @@ def main():
     if(get_username()!='root'):
        Logger.critical("Program must run as root.")
        exit(100)
+
+    client = jack.Client("zynthian-stage")
+    client.set_xrun_callback(xrun)
+
+    Clock.schedule_interval(midi_autoconnect, 1)
 
     startup_jack()
 
