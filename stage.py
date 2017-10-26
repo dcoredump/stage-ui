@@ -204,13 +204,24 @@ def startup_jack():
         else:
             break
 
-def midi_autoconnect(self):
-    tty_out=client.get_ports("ttymidi", is_output=True, is_physical=False, is_midi=True)
-    if(len(tty_out)==0):
-        hw_out=client.get_ports(is_midi=True, is_audio=False, is_output=False, is_physical=False)
-        if(len(hw_out)>0):
-            Logger.info("jack_alias %s => ttymidi:MIDI_in" % str(hw_out[0]))
-            #subprocess.call(JACKALIAS+" "+str(hw_out[0])+" ttymidi:MIDI_in",shell=True)
+def midi_autoconnect():
+    for i in range(1,3):
+        if(i%2==0):
+            io=True
+            io_name="out"
+        else:
+            io=False
+            io_name="in"
+        print("Checking for MIDI-"+io_name+":"+str(io))
+        ttymidi=client.get_ports("ttymidi", is_output=io, is_midi=True)
+        if(len(ttymidi)==0):
+            if(io==True):
+                hw=client.get_ports("system",is_midi=True, is_audio=False, is_output=True, is_physical=True)
+            else:
+                hw=client.get_ports("system",is_midi=True, is_audio=False, is_input=True, is_physical=True)
+            if(len(hw)>0):
+                Logger.info("jack_alias %s => ttymidi:MIDI_%s" % (hw[0].name,io_name))
+                subprocess.call(JACKALIAS+" "+str(hw[0].name)+" ttymidi:MIDI_"+io_name,shell=True)
 
 ##############################################################################
 # Main
@@ -225,7 +236,7 @@ def main():
     client = jack.Client("zynthian-stage")
     client.set_xrun_callback(xrun)
 
-    Clock.schedule_interval(midi_autoconnect, 1)
+    midi_autoconnect()
 
     startup_jack()
 
