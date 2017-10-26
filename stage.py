@@ -28,6 +28,7 @@ JACKALIAS="/usr/local/bin/jack_alias"
 SYSTEMCTL="/bin/systemctl"
 MODHOST_PIPE="/tmp/mod-host"
 
+client=None
 xrun_counter=0
 
 ##############################################################################
@@ -154,8 +155,12 @@ def systemctl(service,run):
             return(True)
 
 def quit():
+    global client
     mod_service("mod-ui",False)
     mod_service("mod-host",False)
+    mod_service("mod-host-pipe",False)
+    client=jack.Client("stage")
+    midi_alias(unalias=True)
     exit(0)
 
 def halt():
@@ -180,7 +185,6 @@ def jack_status(status, reason):
     jack_status_message=(status, reason)
 
 def startup_jack():
-    global client
     global xrun_counter
 
     Logger.info("startup_jack()")
@@ -204,14 +208,18 @@ def startup_jack():
         else:
             break
 
-def midi_autoconnect():
+def midi_alias(unalias=False):
+    global client
+    if(client==None):
+        Logger.warning("No internal jack-client available")
+        return
     for i in range(1,3):
         if(i%2==0):
             io=True
-            io_name="out"
+            io_name="in"
         else:
             io=False
-            io_name="in"
+            io_name="out"
         print("Checking for MIDI-"+io_name+":"+str(io))
         ttymidi=client.get_ports("ttymidi", is_output=io, is_midi=True)
         if(len(ttymidi)==0):
@@ -220,8 +228,12 @@ def midi_autoconnect():
             else:
                 hw=client.get_ports("system",is_midi=True, is_audio=False, is_input=True, is_physical=True)
             if(len(hw)>0):
-                Logger.info("jack_alias %s => ttymidi:MIDI_%s" % (hw[0].name,io_name))
-                subprocess.call(JACKALIAS+" "+str(hw[0].name)+" ttymidi:MIDI_"+io_name,shell=True)
+                if(unalias==True):
+                    Logger.info("jack unalias %s => ttymidi:MIDI_%s" % (hw[0].name,io_name))
+                    subprocess.call(JACKALIAS+" -u "+str(hw[0].name)+" ttymidi:MIDI_"+io_name,shell=True)
+                else:
+                    Logger.info("jack alias %s => ttymidi:MIDI_%s" % (hw[0].name,io_name))
+                    subprocess.call(JACKALIAS+" "+str(hw[0].name)+" ttymidi:MIDI_"+io_name,shell=True)
 
 ##############################################################################
 # Main
@@ -233,17 +245,17 @@ def main():
        Logger.critical("Program must run as root.")
        exit(100)
 
-    client = jack.Client("zynthian-stage")
-    client.set_xrun_callback(xrun)
-
-    midi_autoconnect()
-
     startup_jack()
+    
+    client=jack.Client("stage")
+    client.set_xrun_callback(xrun)
+    midi_alias()
 
     Logger.info("Start StageApp.")
     StageApp().run()
     Logger.info("StageApp ends.")
+    quit()
 
 if(__name__=="__main__"):
     main()
-    exit(0)
+    quit()
