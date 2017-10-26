@@ -103,17 +103,17 @@ def get_pedalboard_names():
                 pedalboards.append(DataItem(text=m.group(1)))
     return (pedalboards)
 
-def load_pedalboard(pedalboard):
+def load_pedalboard(pedalboard, init=False):
     global actual_pedalboard
 
     Logger.info("load_pedalboard:%s" % pedalboard)
 
-    if(actual_pedalboard==pedalboard):
+    if(actual_pedalboard==pedalboard and init==False):
         return
 
     mod_service("mod-ui",False)
     mod_service("mod-host",False)
-    mod_service("mod-host-pipe",False)
+    #mod_service("mod-host-pipe",False)
     mod_service("mod-host-pipe",True)
    
     if(systemctlstatus('mod-host-pipe') and systemctlstatus('jack2')):
@@ -302,8 +302,9 @@ def main():
     client.set_xrun_callback(xrun)
     midi_alias()
 
+    mod_service("mod-host-pipe",True)
     actual_pedalboard=read_last_pedalboard()
-    load_pedalboard(actual_pedalboard)
+    load_pedalboard(actual_pedalboard,init=True)
     Logger.info("main:loaded actual pedalboard: %s",actual_pedalboard)
 
     Logger.info("main:Start StageApp.")
