@@ -4,7 +4,7 @@
 
 StageRoot:
 
-<SelectPedalboardButton>:
+<ListPedalboardButton>:
     size: (100, '80dp')
     on_press: stage.load_pedalboard(self.text)
 
@@ -42,8 +42,8 @@ StageRoot:
                     ListView:
                         id: preset_list_id
                         adapter:
-                            #ListAdapter(data=stage.get_pedalboard_names(), allow_empty_selection=False, selection_mode='single', cls=stage.SelectPedalboardButton)
-                            ListAdapter(data=stage.get_pedalboard_names(), selection_mode='single', cls=stage.SelectPedalboardButton)
+                            #ListAdapter(data=stage.get_pedalboard_names(), selection_mode='single', cls=stage.SelectPedalboardButton)
+                            ListAdapter(data=stage.get_pedalboard_names(), args_converter=stage.list_items_args_converter, propagate_selection_to_data=True, selection_mode='single', allow_empty_selection=False, cls=stage.ListPedalboardButton)
                     #BoxLayout:
                     #    orientation: 'vertical'
                     #    padding: 40
@@ -77,7 +77,7 @@ StageRoot:
                         spacing: 40
                         Button:
                             text: "Restart"
-                            on_press: stage.quit()
+                            on_press: stage.quit_prog()
                         Button:
                             text: "Halt system"
                             on_press: stage.halt()

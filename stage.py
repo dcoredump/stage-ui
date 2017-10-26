@@ -7,6 +7,7 @@ from kivy.app import App
 from kivy.properties import ObjectProperty
 from kivy.properties import NumericProperty
 from kivy.uix.listview import ListItemButton
+from kivy.adapters.models import SelectableDataItem
 from kivy.logger import Logger
 from kivy.clock import Clock
 import os, stat, sys, re
@@ -16,6 +17,7 @@ import pwd
 import jack
 from time import sleep
 from pprint import pprint
+from pathlib import Path
 
 ##############################################################################
 # Globals
@@ -27,9 +29,11 @@ JACKWAIT="/usr/local/bin/jack_wait -t1 -w"
 JACKALIAS="/usr/local/bin/jack_alias"
 SYSTEMCTL="/bin/systemctl"
 MODHOST_PIPE="/tmp/mod-host"
+LAST_PEDALBOARD_FILE=os.environ['HOME'] + "/.last_pedalboard"
 
 client=None
 xrun_counter=0
+actual_pedalboard="default"
 
 ##############################################################################
 # Kivy class
@@ -41,8 +45,13 @@ class StageApp(App):
 class StageRoot(BoxLayout):
     pass
 
-class SelectPedalboardButton(ListItemButton):
-    pass
+class ListPedalboardButton(ListItemButton):
+   pass
+
+class DataItem(SelectableDataItem):
+    def __init__(self, text="", is_selected=False):
+        self.text = text
+        self.is_selected = is_selected
 
 class StageScreens(BoxLayout):
     global xrun_counter
@@ -78,16 +87,29 @@ class StageScreens(BoxLayout):
 # Functions
 ##############################################################################
 
+def list_items_args_converter(row_index, obj):
+    return({'text': obj.text, 'size_hint_y': None, 'height': 50})
+
 def get_pedalboard_names():
+    actual_pedalboard=read_last_pedalboard()
     pedalboards = []
     for p in os.listdir(PEDALBOARDS_PATH):
         m = re.search("^(.+)\.pedalboard", p)
         if (m):
-            pedalboards.append(m.group(1))
+            if(m.group(1)==actual_pedalboard):
+                Logger.info("get_pedalboard_names: found actual pedalboard [%s]" % actual_pedalboard)
+                pedalboards.append(DataItem(text=m.group(1),is_selected=True))
+            else:
+                pedalboards.append(DataItem(text=m.group(1)))
     return (pedalboards)
 
 def load_pedalboard(pedalboard):
-    Logger.info("load_pedalboard:%s" % load_pedalboard)
+    global actual_pedalboard
+
+    Logger.info("load_pedalboard:%s" % pedalboard)
+
+    if(actual_pedalboard==pedalboard):
+        return
 
     mod_service("mod-ui",False)
     mod_service("mod-host",False)
@@ -107,6 +129,7 @@ def load_pedalboard(pedalboard):
 
             if (subprocess.call(PEDALBOARD2MODHOST + " " + PEDALBOARDS_PATH + "/" + pedalboard + ".pedalboard/" + pedalboard_ttl_name + " > " + MODHOST_PIPE, shell=True)==0):
                 Logger.info("load_pedalboard:Pedalboard "+pedalboard+" load success.")
+                write_last_pedalboard(pedalboard)
                 sleep(3)
             else:
                 Logger.warning("Pedalboard "+pedalboard+" load problem.")
@@ -233,12 +256,42 @@ def midi_alias(unalias=False):
                     Logger.info("midi_alias:jack alias %s => ttymidi:MIDI_%s" % (hw[0].name,io_name))
                     subprocess.call(JACKALIAS+" "+str(hw[0].name)+" ttymidi:MIDI_"+io_name,shell=True)
 
+def read_last_pedalboard():
+    last_pedalboard_file=Path(LAST_PEDALBOARD_FILE)
+    if(last_pedalboard_file.is_file()):
+        f=open(LAST_PEDALBOARD_FILE,"r")
+        if(f):
+            last_pedalboard=f.readline()[:-1]
+            Logger.info("read_last_pedalboard:last pedalboard: [%s]" % last_pedalboard)
+            if(last_pedalboard==""):
+                last_pedalboard="default"
+                write_last_pedalboard(last_pedalboard)
+            f.close()
+        else:
+            Logger.warning("Cannot read '%s'" % LAST_PEDALBOARD_FILE)
+            last_pedalboard="default"
+    else:
+        write_last_pedalboard("default")
+        last_pedalboard="default"
+    return(last_pedalboard)
+
+def write_last_pedalboard(pedalboard):
+    global actual_pedalboard
+    f=open(LAST_PEDALBOARD_FILE,"w")
+    if(f):
+        f.write(pedalboard+"\n")
+        Logger.info("write_last_pedalboard: [%s]" % pedalboard)
+        actual_pedalboard=pedalboard
+        f.close()
+    else:
+        Logger.warning("Cannot create '%s'" % LAST_PEDALBOARD_FILE)
+
 ##############################################################################
 # Main
 ##############################################################################
 
 def main():
-    global client
+    global client,actual_pedalboard
     if(get_username()!='root'):
        Logger.critical("Program must run as root.")
        exit(100)
@@ -248,6 +301,10 @@ def main():
     client=jack.Client("stage")
     client.set_xrun_callback(xrun)
     midi_alias()
+
+    actual_pedalboard=read_last_pedalboard()
+    load_pedalboard(actual_pedalboard)
+    Logger.info("main:loaded actual pedalboard: %s",actual_pedalboard)
 
     Logger.info("main:Start StageApp.")
     StageApp().run()
