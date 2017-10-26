@@ -87,7 +87,7 @@ def get_pedalboard_names():
     return (pedalboards)
 
 def load_pedalboard(pedalboard):
-    Logger.info("load_pedalboard() %s" % load_pedalboard)
+    Logger.info("load_pedalboard:%s" % load_pedalboard)
 
     mod_service("mod-ui",False)
     mod_service("mod-host",False)
@@ -101,12 +101,12 @@ def load_pedalboard(pedalboard):
             pedalboard_ttl_name = pedalboard + ".ttl"
         if (stat.S_ISFIFO(os.stat(MODHOST_PIPE).st_mode)):
             if (subprocess.call("echo \"remove -1\" >" + MODHOST_PIPE, shell=True)==0):
-                Logger.info("Cleanup pedalboard.")
+                Logger.info("load_pedalboard:Cleanup pedalboard.")
             else:
                 Logger.warning("Cleanup pedalboard failed.")
 
             if (subprocess.call(PEDALBOARD2MODHOST + " " + PEDALBOARDS_PATH + "/" + pedalboard + ".pedalboard/" + pedalboard_ttl_name + " > " + MODHOST_PIPE, shell=True)==0):
-                Logger.info("Pedalboard "+pedalboard+" load success.")
+                Logger.info("load_pedalboard:Pedalboard "+pedalboard+" load success.")
                 sleep(3)
             else:
                 Logger.warning("Pedalboard "+pedalboard+" load problem.")
@@ -121,12 +121,12 @@ def mod_service(mod,state):
             systemctl(mod,True)
         else:
             systemctl(mod,False)
-        Logger.info("State change for %s to %s" % (mod,state))
+        Logger.info("mod_service:State change for %s to %s" % (mod,state))
     else:
-        Logger.info("No state change for %s" % mod)
+        Logger.info("mod_service:No state change for %s" % mod)
 
 def check_jack():
-    Logger.info("check_jack()")
+    Logger.info("check_jack:")
     jackwait=subprocess.call(JACKWAIT+">/dev/null 2>&1",shell=True)
     if(jackwait!=0):
         return(False)
@@ -140,7 +140,7 @@ def systemctlstatus(service):
         return(True)
 
 def systemctl(service,run):
-    Logger.info("systemctl() %s %s" % (service,run))
+    Logger.info("systemctl: %s %s" % (service,run))
     if(run==True):
         if(subprocess.call(shlex.split(SYSTEMCTL + " start "+service))!=0):
             Logger.error("Cannot start %s" % service)
@@ -154,12 +154,11 @@ def systemctl(service,run):
         else:
             return(True)
 
-def quit():
+def quit_prog():
     global client
     mod_service("mod-ui",False)
     mod_service("mod-host",False)
     mod_service("mod-host-pipe",False)
-    client=jack.Client("stage")
     midi_alias(unalias=True)
     exit(0)
 
@@ -187,7 +186,7 @@ def jack_status(status, reason):
 def startup_jack():
     global xrun_counter
 
-    Logger.info("startup_jack()")
+    Logger.info("startup_jack:")
 
     mod_service("mod-ui",False)
     mod_service("mod-host",False)
@@ -202,7 +201,7 @@ def startup_jack():
                 if(systemctl("mod-host-pipe",True)==False):
                     Logger.critical("mod-host-pipe is not running")
                     exit(101)
-                Logger.info("mod-host-pipe was not running, started.")
+                Logger.info("startup_jack:mod-host-pipe was not running, started.")
             else:
                 break
         else:
@@ -211,8 +210,8 @@ def startup_jack():
 def midi_alias(unalias=False):
     global client
     if(client==None):
-        Logger.warning("No internal jack-client available")
-        return
+        Logger.warning("No internal jack-client available, creating new one...")
+        client=jack.Client("stage")
     for i in range(1,3):
         if(i%2==0):
             io=True
@@ -220,7 +219,6 @@ def midi_alias(unalias=False):
         else:
             io=False
             io_name="out"
-        print("Checking for MIDI-"+io_name+":"+str(io))
         ttymidi=client.get_ports("ttymidi", is_output=io, is_midi=True)
         if(len(ttymidi)==0):
             if(io==True):
@@ -229,10 +227,10 @@ def midi_alias(unalias=False):
                 hw=client.get_ports("system",is_midi=True, is_audio=False, is_input=True, is_physical=True)
             if(len(hw)>0):
                 if(unalias==True):
-                    Logger.info("jack unalias %s => ttymidi:MIDI_%s" % (hw[0].name,io_name))
+                    Logger.info("midi_alias:jack unalias %s => ttymidi:MIDI_%s" % (hw[0].name,io_name))
                     subprocess.call(JACKALIAS+" -u "+str(hw[0].name)+" ttymidi:MIDI_"+io_name,shell=True)
                 else:
-                    Logger.info("jack alias %s => ttymidi:MIDI_%s" % (hw[0].name,io_name))
+                    Logger.info("midi_alias:jack alias %s => ttymidi:MIDI_%s" % (hw[0].name,io_name))
                     subprocess.call(JACKALIAS+" "+str(hw[0].name)+" ttymidi:MIDI_"+io_name,shell=True)
 
 ##############################################################################
@@ -251,11 +249,11 @@ def main():
     client.set_xrun_callback(xrun)
     midi_alias()
 
-    Logger.info("Start StageApp.")
+    Logger.info("main:Start StageApp.")
     StageApp().run()
-    Logger.info("StageApp ends.")
-    quit()
+    Logger.info("main:StageApp ends.")
+    quit_prog()
 
 if(__name__=="__main__"):
     main()
-    quit()
+    quit_prog()
