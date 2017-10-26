@@ -77,11 +77,14 @@ class StageScreens(BoxLayout):
             mod_service("mod-ui",True)
 
     def restart_jack(self):
+        global actual_pedalboard
         mod_service("mod-ui",False)
         mod_service("mod-host",False)
         self.modui_button.state='normal'
         systemctl("jack2",False)
         startup_jack()
+        actual_pedalboard=read_last_pedalboard()
+        load_pedalboard(actual_pedalboard,init=True)
 
 ##############################################################################
 # Functions
@@ -109,11 +112,14 @@ def load_pedalboard(pedalboard, init=False):
     Logger.info("load_pedalboard:%s" % pedalboard)
 
     if(actual_pedalboard==pedalboard and init==False):
+        Logger.info("load_pedalboard:no need to load the same pedalboard")
+        return
+    if(systemctlstatus("mod-ui")):
+        Logger.info("load_pedalboard:mod-ui is running! Loading nothing")
         return
 
-    mod_service("mod-ui",False)
     mod_service("mod-host",False)
-    #mod_service("mod-host-pipe",False)
+    mod_service("mod-host-pipe",False)
     mod_service("mod-host-pipe",True)
    
     if(systemctlstatus('mod-host-pipe') and systemctlstatus('jack2')):
