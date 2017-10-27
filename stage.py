@@ -18,6 +18,7 @@ import jack
 from time import sleep
 from pprint import pprint
 from pathlib import Path
+#import instruments
 
 ##############################################################################
 # Globals
@@ -71,10 +72,12 @@ class StageScreens(BoxLayout):
             mod_service("mod-ui",False)
             mod_service("mod-host",False)
             mod_service("mod-host-pipe",True)
+            #self.Pedalboard.disabled=True
         else:
             mod_service("mod-host-pipe",False)
             mod_service("mod-host",True)
             mod_service("mod-ui",True)
+            #self.Pedalboard.disabled=False
 
     def restart_jack(self):
         global actual_pedalboard
