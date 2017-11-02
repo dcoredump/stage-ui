@@ -1,7 +1,8 @@
 #!/bin/bash
 
 echo "#!/usr/bin/python3"
-echo "instrument{}=[]"
+echo "from collections import defaultdict"
+echo "instrument=defaultdict(list)"
 
 for uri in `lv2ls 2>/dev/null`
 do
@@ -12,6 +13,9 @@ do
 ' | sed -E 's/^\s+//'`
     echo "${preset}" | while read p
     do
-        echo "instrument['${uri}'].append('${p}')"
+        if [ ! -z "${p}" ]
+        then
+            echo "instrument['${uri}'].append('${p}')"
+        fi
     done
 done

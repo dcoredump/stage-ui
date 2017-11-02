@@ -16,16 +16,16 @@ jack_system = SystemEffect(
     'system',
     [],                             # audio inputs
     ['playback_1', 'playback_2'],    # audio output
-    [],            # midi inputs
+    ['midi_capture_1'],            # midi inputs
     []            # midi outputs
 )
-jack_ttymidi = SystemEffect(
-    'ttymidi',
-    [],    # audio inputs
-    [],    # audio output
-    ['MIDI_in'],    # midi inputs
-    ['MIDI_out']     # midi outputs
-)
+#jack_ttymidi = SystemEffect(
+#    'ttymidi',
+#    [],    # audio inputs
+#    [],    # audio output
+#    ['MIDI_in'],    # midi inputs
+#    ['MIDI_out']     # midi outputs
+#)
 
 modhost = ModHost('localhost')
 modhost.connect()
@@ -35,16 +35,18 @@ modhost.connect()
 
 pedalboard = Pedalboard('MDA-EP')
 builder = Lv2EffectBuilder()
-builder.reload(builder.lv2_plugins_data())
+#builder.reload(builder.lv2_plugins_data())
 ep = builder.build('http://moddevices.com/plugins/mda/EPiano')
 #ep = builder.build('https://github.com/dcoredump/dexed.lv2')
 #ep = builder.build('http://tytel.org/helm')
+pedalboard.append(ep)
 
 # REMEMBER: FIRST OUTPUT, SECOND INPUT
 # EPiano contains two audio output ports and one midi input port
-pedalboard.connect(ep.outputs[0],jack_system.inputs[0])
+pedalboard.connect(ep.outputs[0],jack_system.outputs[0])
 #pedalboard.connect(ep.outputs[1],jack_system.inputs[1])
-pedalboard.connect(jack_ttymidi.midi_outputs[0],ep.midi_inputs[0])
+#pedalboard.connect(jack_ttymidi.midi_outputs[0],ep.midi_inputs[0])
+pedalboard.connect(jack_system.midi_outputs[0],ep.midi_inputs[0])
 
 modhost.pedalboard = pedalboard
 

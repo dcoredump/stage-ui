@@ -15,10 +15,12 @@ import subprocess
 import shlex
 import pwd
 import jack
+import pexpect
 from time import sleep
 from pprint import pprint
 from pathlib import Path
-#import instruments
+
+import instruments
 
 ##############################################################################
 # Globals
@@ -35,6 +37,8 @@ LAST_PEDALBOARD_FILE=os.environ['HOME'] + "/.last_pedalboard"
 client=None
 xrun_counter=0
 actual_pedalboard="default"
+p_modhost=None
+MODHOST_TIMEOUT=2
 
 ##############################################################################
 # Kivy class
@@ -157,6 +161,22 @@ def mod_service(mod,state):
     else:
         Logger.info("mod_service:No state change for %s" % mod)
 
+def send_mod_host(cmd):
+    global p_modhost
+    r=[None,None]
+    if(p_modhost!=None):
+        p_modhost.sendline(cmd)
+        try:
+            p_modhost.expect('resp ([\-0-9]+)\s*(.*)',timeout=MODHOST_TIMEOUT)
+            resp=p_modhost.match.groups()
+            for i in range(0,len(resp)):
+                r[i]=resp[i].decode('ascii')
+        except Exception as e:
+            print("Execption",str(e))
+    else:
+        Logger.critical("No background mod-host is running...")
+    return(r)
+
 def check_jack():
     Logger.info("check_jack:")
     jackwait=subprocess.call(JACKWAIT+">/dev/null 2>&1",shell=True)
@@ -258,12 +278,14 @@ def midi_alias(unalias=False):
             else:
                 hw=client.get_ports("system",is_midi=True, is_audio=False, is_input=True, is_physical=True)
             if(len(hw)>0):
-                if(unalias==True):
-                    Logger.info("midi_alias:jack unalias %s => ttymidi:MIDI_%s" % (hw[0].name,io_name))
-                    subprocess.call(JACKALIAS+" -u "+str(hw[0].name)+" ttymidi:MIDI_"+io_name,shell=True)
-                else:
-                    Logger.info("midi_alias:jack alias %s => ttymidi:MIDI_%s" % (hw[0].name,io_name))
-                    subprocess.call(JACKALIAS+" "+str(hw[0].name)+" ttymidi:MIDI_"+io_name,shell=True)
+                for m in hw:
+                    if(m.name=="system:midi_capture_2"):
+                        if(unalias==True):
+                            Logger.info("midi_alias:jack unalias %s => ttymidi:MIDI_%s" % (m.name,io_name))
+                            subprocess.call(JACKALIAS+" -u "+str(m.name)+" ttymidi:MIDI_"+io_name,shell=True)
+                        else:
+                            Logger.info("midi_alias:jack alias %s => ttymidi:MIDI_%s" % (m.name,io_name))
+                            subprocess.call(JACKALIAS+" "+str(m.name)+" ttymidi:MIDI_"+io_name,shell=True)
 
 def read_last_pedalboard():
     last_pedalboard_file=Path(LAST_PEDALBOARD_FILE)
@@ -300,7 +322,7 @@ def write_last_pedalboard(pedalboard):
 ##############################################################################
 
 def main():
-    global client,actual_pedalboard
+    global client,actual_pedalboard,p_modhost
     if(get_username()!='root'):
        Logger.critical("Program must run as root.")
        exit(100)
@@ -312,6 +334,11 @@ def main():
     midi_alias()
 
     mod_service("mod-host-pipe",True)
+    p_modhost=pexpect.spawn("mod-host -i")
+    p_modhost.expect('mod-host>',timeout=30)
+    bla=send_mod_host("cpu_load")
+    print("************************ %s ****************************" % str(bla[1]))
+
     actual_pedalboard=read_last_pedalboard()
     load_pedalboard(actual_pedalboard,init=True)
     Logger.info("main:loaded actual pedalboard: %s",actual_pedalboard)
