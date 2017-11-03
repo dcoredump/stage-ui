@@ -48,8 +48,8 @@ class StageApp(App):
     def on_start(self):
         startup_jack()
     
-        client=jack.Client("stage")
-        client.set_xrun_callback(xrun)
+        self.client=jack.Client("stage")
+        self.client.set_xrun_callback(xrun)
         midi_alias()
 
         if(mod_host(True)==False):
@@ -58,8 +58,8 @@ class StageApp(App):
     
         Logger.info("mod-host CPU: "+str(send_mod_host("cpu_load")))
 
-        actual_pedalboard=read_last_pedalboard()
-        load_pedalboard(actual_pedalboard,init=True)
+        self.actual_pedalboard=read_last_pedalboard()
+        load_pedalboard(self.actual_pedalboard,init=True)
 
     def on_stop(self):
         quit_prog()
