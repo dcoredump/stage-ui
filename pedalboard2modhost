@@ -20,6 +20,8 @@ while($ttl=<TTL>)
 		undef($midi_binding);
 		undef($midi_channel);
 		undef($midi_controller);
+		undef($midi_minimum);
+		undef($midi_maximum);
 		next;
 	}
 
@@ -97,13 +99,23 @@ while($ttl=<TTL>)
 		{
 			$midi_controller=int($1);
 		}
-
-		if(defined($midi_binding) && defined($midi_channel) && defined($midi_controller))
+		elsif($ttl=~/^\s*lv2:minimum\s+(\d+\.\d+)/)
 		{
-			push(@midi_param,"$number/$midi_binding/$midi_channel/$midi_controller");
+			$midi_minimum=$1;
+		}
+		elsif($ttl=~/^\s*lv2:maximum\s+(\d+\.\d+)/)
+		{
+			$midi_maximum=$1;
+		}
+
+		if(defined($midi_binding) && defined($midi_channel) && defined($midi_controller) && $midi_minimum && $midi_maximum)
+		{
+			push(@midi_param,"$number/$midi_binding/$midi_channel/$midi_controller/$midi_minimum/$midi_maximum");
 			undef($midi_binding);
 			undef($midi_channel);
 			undef($midi_controller);
+			undef($midi_minimum);
+			undef($midi_maximum);
 		}
 	}
 	elsif($item ne "")
@@ -130,8 +142,8 @@ foreach (@param)
 }
 foreach (@midi_param)
 {
-	($number,$midi_binding,$midi_channel,$midi_controller)=split("/",$_);
-	print "midi_map ".$number." ".$midi_binding." ".$midi_channel." ".$midi_controller."\n";
+	($number,$midi_binding,$midi_channel,$midi_controller,$midi_minimum,$midi_maximum)=split("/",$_);
+	print "midi_map ".$number." ".$midi_binding." ".$midi_channel." ".$midi_controller." ".$midi_minimum." ".$midi_maximum."\n";
 }
 foreach (@cable)
 {
