@@ -156,11 +156,17 @@ def load_pedalboard(pedalboard, init=False):
 
         p=subprocess.check_output(shlex.split(PEDALBOARD2MODHOST + " " + PEDALBOARDS_PATH + "/" + pedalboard + ".pedalboard/" + pedalboard_ttl_name))
         if(p!=""):
+            re_connect=re.compile('^\s*(connect)\s+(.+)\s+(.+)_\d\s*$')
             for line in p.splitlines():
                 line=line.decode('ascii')
+                r=re_connect.match(line)
+                if(r):
+                    if(r.group(1)=="connect" and r.group(3)=="system:midi_capture"):
+                        line="connect "+r.group(2)+" ttymidi:MIDI_in"
                 resp=send_mod_host(line)
                 if(resp[0]!=None):
                     Logger.info("load_pedalboard:"+line+":"+str(resp))
+            resp=send_mod_host("connect mod-host:midi_in ttymidi:MIDI_in")
             write_last_pedalboard(pedalboard)
             actual_pedalboard=pedalboard
         else:
@@ -273,14 +279,16 @@ def midi_alias(unalias=False):
             else:
                 hw=App.get_running_app().client.get_ports("system",is_midi=True, is_audio=False, is_input=True, is_physical=True)
             if(len(hw)>0):
+                re_system_capture=re.compile('^(system:midi_capture_)\d+')
                 for m in hw:
-                    if(m.name=="system:midi_capture_2"):
+                    r=re_system_capture.match(m.name)
+                    if(r):
                         if(unalias==True):
-                            Logger.info("midi_alias:jack unalias %s => ttymidi:MIDI_%s" % (m.name,io_name))
-                            subprocess.call(JACKALIAS+" -u "+str(m.name)+" ttymidi:MIDI_"+io_name,shell=True)
+                            Logger.info("midi_alias:jack unalias %s => ttymidi:MIDI_%s" % (r.group(0),io_name))
+                            subprocess.call(JACKALIAS+" -u "+str(r.group(0))+" ttymidi:MIDI_"+io_name,shell=True)
                         else:
-                            Logger.info("midi_alias:jack alias %s => ttymidi:MIDI_%s" % (m.name,io_name))
-                            subprocess.call(JACKALIAS+" "+str(m.name)+" ttymidi:MIDI_"+io_name,shell=True)
+                            Logger.info("midi_alias:jack alias %s => ttymidi:MIDI_%s" % (r.group(0),io_name))
+                            subprocess.call(JACKALIAS+" "+str(r.group(0))+" ttymidi:MIDI_"+io_name,shell=True)
 
 def read_last_pedalboard():
     last_pedalboard_file=Path(LAST_PEDALBOARD_FILE)
@@ -338,6 +346,7 @@ def send_mod_host(cmd):
         Logger.critical("No background mod-host is running...")
     else:
         App.get_running_app().p_modhost.sendline(cmd)
+        Logger.info("send_mod_host:["+cmd+"]")
         try:
             App.get_running_app().p_modhost.expect('resp ([\-0-9]+)\s*(.*)\0',timeout=MODHOST_TIMEOUT)
             resp=App.get_running_app().p_modhost.match.groups()
