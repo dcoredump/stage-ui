@@ -3,6 +3,7 @@
 import lilv
 from collections import defaultdict
 import pprint
+import sys
 
 world = lilv.World()
 world.load_all()
@@ -26,7 +27,7 @@ def get_plugin_presets(plugin_name):
 
 if(__name__=="__main__"):
     pp=defaultdict(list)
-    pp=get_plugin_presets("http://tytel.org/helm")
+    pp=get_plugin_presets(sys.argv[1])
     plugin=defaultdict(list)
 
     for plugin in pp:
