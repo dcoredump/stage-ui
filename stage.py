@@ -16,6 +16,7 @@ import shlex
 import pwd
 import jack
 import pexpect
+import instruments
 from time import sleep
 from pprint import pprint
 from pathlib import Path
@@ -56,6 +57,8 @@ class StageApp(App):
             Logger.critical("Cannot start mod-host.")
             exit(101)
     
+        systemctl("mod-ui",False)
+
         Logger.info("mod-host CPU: "+str(send_mod_host("cpu_load")))
 
         self.actual_pedalboard=read_last_pedalboard()
@@ -89,6 +92,7 @@ class StageScreens(BoxLayout):
 
     def change_modui_button_state(self):
         if(systemctlstatus('mod-ui')==True):
+            midi_alias()
             mod_service("mod-ui",False)
             mod_service("mod-host",False)
             mod_host(True)
@@ -96,6 +100,7 @@ class StageScreens(BoxLayout):
             #self.Pedalboard.disabled=True
         else:
             mod_host(False)
+            midi_alias(unalias=True)
             mod_service("mod-host",True)
             mod_service("mod-ui",True)
             #self.Pedalboard.disabled=False
