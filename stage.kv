@@ -14,7 +14,8 @@ StageRoot:
 <StageScreens>:
     modui_button: mod_ui_button_id
     jack_button: jack_button_id
-    preset_list: preset_list_id
+    pedalboard_list: pedalboard_list_id
+    plugin_list: plugin_list_id
 
     orientation: 'vertical'
     BoxLayout:
@@ -23,9 +24,6 @@ StageRoot:
         Button:
             text: "Pedalboard"
             on_state: _screen_manager.current = 'Pedalboard'
-        #Button:
-        #    text: "Sound"
-        #    on_state: _screen_manager.current = 'Sound'
         Button:
             text: "System"
             on_state: _screen_manager.current = 'System'
@@ -34,30 +32,18 @@ StageRoot:
         ScreenManager:
             id: _screen_manager
             Screen:
-                name: 'Pedalboard'
                 BoxLayout:
                     orientation: 'horizontal'
                     padding: 20
                     spacing: 20
                     ListView:
-                        id: preset_list_id
+                        id: pedalboard_list_id
                         adapter:
-                            #ListAdapter(data=stage.get_pedalboard_names(), selection_mode='single', cls=stage.SelectPedalboardButton)
-                            ListAdapter(data=stage.get_pedalboard_names(), args_converter=stage.list_items_args_converter, propagate_selection_to_data=True, selection_mode='single', allow_empty_selection=False, cls=stage.ListPedalboardButton)
-                    #BoxLayout:
-                    #    orientation: 'vertical'
-                    #    padding: 40
-                    #    spacing: 40
-                    #    Label:
-                    #        text: "Preset1"
-                    #    Label:
-                    #        text: "Preset2"
-                    #    Label:
-                    #        text: "Preset3"
-            #Screen:
-            #    name: 'Sound'
-            #    Label:
-            #        text: 'Sound'
+                            ListAdapter(data=stage.get_pedalboard_names(), args_converter=root.pedalboard_list_items_args_converter, propagate_selection_to_data=True, selection_mode='single', allow_empty_selection=False, cls=stage.ListPedalboardButton)
+                    ListView:
+                        id: plugin_list_id
+                        adapter:
+                            ListAdapter(data=[], args_converter=root.plugin_list_items_args_converter, propagate_selection_to_data=True, selection_mode='single', allow_empty_selection=True, cls=stage.ListPedalboardButton)
             Screen:
                 name: 'System'
                 BoxLayout:

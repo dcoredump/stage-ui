@@ -17,6 +17,8 @@ def get_plugin_presets(plugin_name):
     psets = plugin.get_related(preset_uri)
     label_uri = world.new_uri(lilv.LILV_NS_RDFS + "label")
 
+    print("Plugin: %s (%s)" % (plugin.get_uri(),plugin.get_name()))
+
     for pset_node in psets:
         pset_nodes=world.find_nodes(pset_node,label_uri,None)
         for pset_name in pset_nodes:

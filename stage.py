@@ -5,7 +5,7 @@ Zynthian stage gui
 from kivy.uix.boxlayout import BoxLayout
 from kivy.app import App
 from kivy.properties import ObjectProperty
-from kivy.properties import NumericProperty
+from kivy.properties import ListProperty
 from kivy.uix.listview import ListItemButton
 from kivy.adapters.models import SelectableDataItem
 from kivy.logger import Logger
@@ -16,12 +16,14 @@ import shlex
 import pwd
 import jack
 import pexpect
-import instruments
+import lilv
+from collections import defaultdict
 from time import sleep
 from pprint import pprint
 from pathlib import Path
+from inspect import getmembers
 
-import instruments
+#import instruments
 
 ##############################################################################
 # Globals
@@ -45,6 +47,11 @@ class StageApp(App):
     xrun_counter=0
     actual_pedalboard="default"
     p_modhost=None
+    used_plugins=[]
+    presets={}
+    world=lilv.World()
+
+    world.load_all()
 
     def on_start(self):
         startup_jack()
@@ -64,6 +71,13 @@ class StageApp(App):
         self.actual_pedalboard=read_last_pedalboard()
         load_pedalboard(self.actual_pedalboard,init=True)
 
+        used_plugins=get_used_plugins()
+        # I have absolute no idea how to get this working... 
+        #self.root.StageRoot.StageScreens.plugin_list.item_strings=used_plugins
+        #self.root.StageScreen.plugin_list.adapter.data.clear()
+        #self.root.plugin_list.adapter.data.extend(used_plugins)
+        #self.root.plugin_list._trigger_reset_populate()
+
     def on_stop(self):
         quit_prog()
 
@@ -81,8 +95,16 @@ class DataItem(SelectableDataItem):
 class StageScreens(BoxLayout):
     modui_button=ObjectProperty()
     jack_button=ObjectProperty()
-    preset_list=ObjectProperty()
+    #pedalboard_list=ListProperty()
     mod_host_status=ObjectProperty()
+    plugin_list=ObjectProperty()
+    Logger.info(">>>>>>>>>>>>>>>:%s" % pprint(plugin_list))
+
+    def pedalboard_list_items_args_converter(self,row_index, obj):
+        return({'text': obj.text, 'size_hint_y': None, 'height': 50})
+
+    def plugin_list_items_args_converter(self,row_index, obj):
+        return({'text': obj.text, 'size_hint_y': None, 'height': 50})
 
     def set_modui_button_state(self):
         if(systemctlstatus('mod-ui')==True and systemctlstatus('jack2')==True):
@@ -118,8 +140,11 @@ class StageScreens(BoxLayout):
 # Functions
 ##############################################################################
 
-def list_items_args_converter(row_index, obj):
-    return({'text': obj.text, 'size_hint_y': None, 'height': 50})
+def get_used_plugins():
+    up=[]
+    for p in App.get_running_app().used_plugins:
+        up.append(DataItem(text=p[1]))
+    return(up)
 
 def get_pedalboard_names():
     actual_pedalboard=read_last_pedalboard()
@@ -162,12 +187,20 @@ def load_pedalboard(pedalboard, init=False):
         p=subprocess.check_output(shlex.split(PEDALBOARD2MODHOST + " " + PEDALBOARDS_PATH + "/" + pedalboard + ".pedalboard/" + pedalboard_ttl_name))
         if(p!=""):
             re_connect=re.compile('^\s*(connect)\s+(.+)\s+(.+)_\d\s*$')
+            re_add=re.compile('^\s*add\s+(.+)\s+(\d)\s*$')
             for line in p.splitlines():
                 line=line.decode('ascii')
                 r=re_connect.match(line)
                 if(r):
                     if(r.group(1)=="connect" and r.group(3)=="system:midi_capture"):
                         line="connect "+r.group(2)+" ttymidi:MIDI_in"
+                r=re_add.match(line)
+                if(r):
+                    if(r.group(1)!="" and int(r.group(2))>=0):
+                        plugin_name=App.get_running_app().world.get_all_plugins().get_by_uri(App.get_running_app().world.new_uri(r.group(1))).get_name()
+                        App.get_running_app().used_plugins.append((r.group(1),str(plugin_name),r.group(2)))
+                        App.get_running_app().presets[str(r.group(1))+"|"+str(r.group(2))]=get_plugin_presets(r.group(1))
+                        Logger.info("Found plugin: %s (%s)" % (plugin_name,r.group(1)))
                 resp=send_mod_host(line)
                 if(resp[0]!=None):
                     Logger.info("load_pedalboard:"+line+":"+str(resp))
@@ -360,6 +393,21 @@ def send_mod_host(cmd):
         except Exception as e:
             Logger.warning("send_mod_host:"+cmd+":"+str(e))
     return(r)
+
+def get_plugin_presets(plugin_name):
+    plugin_presets=defaultdict(list)
+    plugin=App.get_running_app().world.get_all_plugins().get_by_uri(App.get_running_app().world.new_uri(plugin_name))
+    preset_uri = lilv.Node(App.get_running_app().world.new_uri("http://lv2plug.in/ns/ext/presets#Preset"))
+    psets=plugin.get_related(preset_uri)
+    label_uri=App.get_running_app().world.new_uri(lilv.LILV_NS_RDFS + "label")
+
+    for pset_node in psets:
+        pset_nodes=App.get_running_app().world.find_nodes(pset_node,label_uri,None)
+        for pset_name in pset_nodes:
+            #plugin_presets[str(plugin.get_uri())].append((pset_node.get_turtle_token(),pset_name.get_turtle_token()))
+            plugin_presets[str(plugin.get_uri())].append((str(pset_node),pset_name.get_turtle_token()))
+
+    return(plugin_presets)
 
 ##############################################################################
 # Main
